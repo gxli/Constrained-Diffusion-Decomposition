@@ -19,9 +19,9 @@ the output file will be named as input.fits_scale.fits
 
 ### (b) inside python
 ```python
-import constrained_diffusion_decomposition
+import constrained_diffusion_decomposition as cdd
 
-result, residual = constrained_diffusion_decomposition.dcnstrained_diffusion_decomposition(data)
+result, residual = cdd.constrained_diffusion_decomposition(data)
 ```
 
 An <a href="https://github.com/gxli/Constrained-Diffusion-Decomposition/blob/main/example.ipynb"> example </a> is avaliable here
