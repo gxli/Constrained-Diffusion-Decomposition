@@ -12,7 +12,7 @@ result: numpy nd array, of shape (m, nx, ny, nz). The mth commponent contain str
 
 ### Usage:
 
-### (a) under the shell,
+### (a) under the shell
 ```sh
 python constrained_diffusion_decomposition.py input.fits
 ```
