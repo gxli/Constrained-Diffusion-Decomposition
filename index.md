@@ -8,6 +8,8 @@ numpy nd array, of shape e.g. (nx, ny, nz)
 
 result: numpy nd array, of shape (m, nx, ny, nz). The mth commponent contain structures of sizes 2$^(m-1)$ to 2$^m$ pixels. residual: numpy nd array, of shape (nx, ny, nz) the input data will be recovered as input = sum_i result[i] + residual
 
+![For example](edit.jpeg.001.jpeg)
+
 ### Usage:
 
 ### (a) under the shell,
