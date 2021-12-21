@@ -23,6 +23,9 @@ import constrained_diffusion_decomposition
 
 result, residual = constrained_diffusion_decomposition.dcnstrained_diffusion_decomposition(data)
 ```
+
+An <a href="https://github.com/gxli/Constrained-Diffusion-Decomposition/blob/main/example.ipynb"> example </a> is avaliable here
+
 ### How it is done:
 
 Assuuming an input of I(x, y),t he decomposition is achieved by solving the equation
