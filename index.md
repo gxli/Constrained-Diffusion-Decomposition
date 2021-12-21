@@ -1,5 +1,7 @@
 <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=default"></script>
 
+An <a href="https://github.com/gxli/Constrained-Diffusion-Decomposition/blob/main/example.ipynb"> example </a> is avaliable here
+
 ### Input:
 
 numpy nd array, of shape e.g. (nx, ny, nz)
@@ -25,8 +27,6 @@ import constrained_diffusion_decomposition as cdd
 
 result, residual = cdd.constrained_diffusion_decomposition(data)
 ```
-
-An <a href="https://github.com/gxli/Constrained-Diffusion-Decomposition/blob/main/example.ipynb"> example </a> is avaliable here
 
 ### How it is done:
 
