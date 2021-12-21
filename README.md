@@ -9,8 +9,9 @@ Input:
 
 Output:
   
-  numpy nd array, of shape (m, nx, ny, nz). The mth commponent contain structures of sizes 2**(m-1) to 2**m pixels.
-  
+  result: numpy nd array, of shape (m, nx, ny, nz). The mth commponent contain structures of sizes 2**(m-1) to 2**m pixels.
+  residual: numpy nd array, of shape (nx, ny, nz)
+  the input data will be recovered as input = sum_i result[i] + residual
 
 Usage:
 
@@ -18,12 +19,14 @@ Usage:
 
 
   python constrained_diffusion_decomposition.py input.fits 
+  
   the output file will be named as input.fits_scale.fits
 
 (b) inside python
   
   import constrained_diffusion_decomposition
-  result = constrained_diffusion_decomposition.dcnstrained_diffusion_decomposition(data)
+  
+  result, residual = constrained_diffusion_decomposition.dcnstrained_diffusion_decomposition(data)
  
 
   
