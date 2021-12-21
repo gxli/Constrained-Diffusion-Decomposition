@@ -1,37 +1,37 @@
 ## Welcome to GitHub Pages
+Decompose images into components of different sizes by solving a modified version of the diffusion equation.
 
-You can use the [editor on GitHub](https://github.com/gxli/constrained_diffusion_decomposition/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+Input:
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+numpy nd array, of shape e.g. (nx, ny, nz)
 
-### Markdown
+Output:
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+result: numpy nd array, of shape (m, nx, ny, nz). The mth commponent contain structures of sizes 2**(m-1) to 2**m pixels. residual: numpy nd array, of shape (nx, ny, nz) the input data will be recovered as input = sum_i result[i] + residual
 
-```markdown
-Syntax highlighted code block
+Usage:
 
-# Header 1
-## Header 2
-### Header 3
+(a) under the shell,
 
-- Bulleted
-- List
+python constrained_diffusion_decomposition.py input.fits
 
-1. Numbered
-2. List
+the output file will be named as input.fits_scale.fits
 
-**Bold** and _Italic_ and `Code` text
+(b) inside python
 
-[Link](url) and ![Image](src)
-```
+import constrained_diffusion_decomposition
 
-For more details see [Basic writing and formatting syntax](https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
+result, residual = constrained_diffusion_decomposition.dcnstrained_diffusion_decomposition(data)
 
-### Jekyll Themes
+How it is done:
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/gxli/constrained_diffusion_decomposition/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+Assuuming an input of I(x, y),t he decomposition is achieved by solving the equation
 
-### Support or Contact
+\frac{\partial I_t }{\partial t} ={\rm sgn}(I_t) \mathcal{H}({- \rm sgn}(I_t) \nabla^2 I_t) \nabla^2 I_t ;,
 
+where t is related to the scale l by t = l**2
+
+References:
+
+Li 2022, Multi-Scale Decomposition of Astronomical Maps -- Constrained Diffusion Method
 Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
