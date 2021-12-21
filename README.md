@@ -1,3 +1,5 @@
+<img src="https://render.githubusercontent.com/render/math?math=e^{i \pi} = -1">
+
 # Constrain diffusion: A new PDE-based image decomposition
 Decompose images into components of different sizes by solving a modified version of the diffusion equation.
 
@@ -29,9 +31,10 @@ How it is done:
 
 Assuuming an input of I(x, y),t he decomposition is achieved by solving the equation 
 
-
-$  \frac{\partial I_t }{\partial t} ={\rm sgn}(I_t) \mathcal{H}({- \rm sgn}(I_t)  \nabla^2  I_t)   \nabla^2 I_t \;, $
-
+  \frac{\partial I_t }{\partial t} ={\rm sgn}(I_t) \mathcal{H}({- \rm sgn}(I_t)  \nabla^2  I_t)   \nabla^2 I_t \;,
+ 
+where t is related to the scale l by t = l**2
+ 
 
   
   
