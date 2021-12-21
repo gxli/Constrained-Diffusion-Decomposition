@@ -7,9 +7,9 @@ Input:
 
 Output:
   
-  numpy nd array, of shape (m, nx, ny, nz).
+  numpy nd array, of shape (m, nx, ny, nz). The mth commponent contain structures of sizes 2**(m-1) to 2**m pixels.
   
-  
+
 Usage:
 
 (a) under the shell,
@@ -22,6 +22,14 @@ Usage:
   
   import constrained_diffusion_decomposition
   result = constrained_diffusion_decomposition.dcnstrained_diffusion_decomposition(data)
+ 
+
+  
+How it is done:
+
+
+ 
+  
   
 References: 
 
