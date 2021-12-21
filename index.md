@@ -1,5 +1,3 @@
-## Decompose images into components of different sizes by solving a modified version of the diffusion equation.
-
 ### Input:
 
 numpy nd array, of shape e.g. (nx, ny, nz)
@@ -11,17 +9,18 @@ result: numpy nd array, of shape (m, nx, ny, nz). The mth commponent contain str
 ### Usage:
 
 ### (a) under the shell,
-
+```sh
 python constrained_diffusion_decomposition.py input.fits
+```
 
 the output file will be named as input.fits_scale.fits
 
 ### (b) inside python
-
+```python
 import constrained_diffusion_decomposition
 
 result, residual = constrained_diffusion_decomposition.dcnstrained_diffusion_decomposition(data)
-
+```
 ### How it is done:
 
 Assuuming an input of I(x, y),t he decomposition is achieved by solving the equation
