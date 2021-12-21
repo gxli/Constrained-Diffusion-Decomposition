@@ -27,8 +27,11 @@ Usage:
   
 How it is done:
 
+Assuuming an input of I(x, y),t he decomposition is achieved by solving the equation 
 
- 
+```math
+  \frac{\partial I_t }{\partial t} ={\rm sgn}(I_t) \mathcal{H}({- \rm sgn}(I_t)  \nabla^2  I_t)   \nabla^2 I_t \;, 
+```
   
   
 References: 
