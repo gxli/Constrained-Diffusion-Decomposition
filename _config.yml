@@ -1,4 +1,4 @@
-theme: jekyll-theme-modernist
+theme: jekyll-theme-slate
 
 title: [Constrained Diffusion Decomposition]
 description: [A new approach to image decomposition]
