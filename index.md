@@ -4,13 +4,13 @@ An <a href="https://github.com/gxli/Constrained-Diffusion-Decomposition/blob/mai
 
 ### Input:
 
-numpy nd array, of shape e.g. (nx, ny, nz)
+numpy nd array, of shape e.g. (nx, ny, nz).
 
 ### Output:
 
 result: numpy nd array, of shape (m, nx, ny, nz). The mth commponent contain structures of sizes 2$^(m-1)$ to 2$^m$ pixels. 
 
-residual: numpy nd array, of shape (nx, ny, nz) the input data will be recovered as input = sum_i result[i] + residual
+residual: numpy nd array, of shape (nx, ny, nz) the input data will be recovered as input = sum_i result[i] + residual.
 
 ![For example](edit.jpeg.001.jpeg)
 
@@ -37,7 +37,7 @@ Assuuming an input of I(x, y),t he decomposition is achieved by solving the equa
 ```math
 \frac{\partial I_t }{\partial t} ={\rm sgn}(I_t) \mathcal{H}({- \rm sgn}(I_t) \nabla^2 I_t) \nabla^2 I_t ;,
 ```
-where t is related to the scale l by t = l**2
+where t is related to the scale l by t = l**2.
 
 ### References:
 
