@@ -21,7 +21,7 @@ residual: numpy nd array, of shape (nx, ny, nz) the input data will be recovered
 python constrained_diffusion_decomposition.py input.fits
 ```
 
-the output file will be named as input.fits_scale.fits
+the output file will be named as input.fits_scale.fits.
 
 ### (b) inside python
 ```python
@@ -41,5 +41,5 @@ where t is related to the scale l by t = l**2.
 
 ### References:
 
-Li 2022, Multi-Scale Decomposition of Astronomical Maps -- Constrained Diffusion Method
+Li 2022, Multi-Scale Decomposition of Astronomical Maps -- Constrained Diffusion Method.
 
