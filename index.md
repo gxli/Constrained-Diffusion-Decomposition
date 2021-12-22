@@ -33,10 +33,10 @@ result, residual = cdd.constrained_diffusion_decomposition(data)
 ### How it is done:
 
 Assuuming an input of I(x, y),t he decomposition is achieved by solving the equation
-<script type="text/javascript"
-  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+```math
     \frac{\partial I_t }{\partial t} ={\rm sgn}(I_t) \mathcal{H}({- \rm sgn}(I_t) \nabla^2 I_t) \nabla^2 I_t
-</script> 
+```
+
 where t is related to the scale l by t = l**2.
 
 ### References:
