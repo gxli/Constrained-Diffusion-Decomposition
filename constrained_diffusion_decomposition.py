@@ -34,6 +34,7 @@ def constrained_diffusion_decomposition(data,
 
                 output[i] contains structures of sizes larger than 2**i pixels
                 yet smaller than 2**(i+1) pixels.
+                
     """
     
     ntot = int(log(min(data.shape))/log(2) - 1)    
@@ -92,8 +93,8 @@ def constrained_diffusion_decomposition(data,
             # data = ndimage.gaussian_filter(data, kernel_size)     # !!!!
         result.append(channel_image)
         # residual.append(data)
-    result.append(data)        # adding the residuals as the last channel
-    return result
+    residual = data
+    return result, residual
 
 
 if __name__ == "__main__":
@@ -101,9 +102,9 @@ if __name__ == "__main__":
     hdulist = fits.open(fname)
     data = hdulist[0].data
     data[np.isnan(data)] = 0
-    data_hp = constrained_diffusion_decomposition(data)
+    result, residual = constrained_diffusion_decomposition(data)
 
-    nhdulist = fits.PrimaryHDU(data_hp)
+    nhdulist = fits.PrimaryHDU(result)
     nhdulist.header = hdulist[0].header
     nhdulist.header['DMIN'] = np.nanmin(data_hp)
     nhdulist.header['DMAX'] = np.nanmin(data_hp)
