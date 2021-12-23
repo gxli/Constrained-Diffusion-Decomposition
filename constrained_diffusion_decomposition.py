@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
     nhdulist = fits.PrimaryHDU(result)
     nhdulist.header = hdulist[0].header
-    nhdulist.header['DMIN'] = np.nanmin(data_hp)
-    nhdulist.header['DMAX'] = np.nanmin(data_hp)
+    nhdulist.header['DMIN'] = np.nanmin(result)
+    nhdulist.header['DMAX'] = np.nanmin(result)
 
     nhdulist.writeto(sys.argv[1] + '_scale.fits', overwrite=True)
