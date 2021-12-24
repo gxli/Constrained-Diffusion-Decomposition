@@ -12,6 +12,8 @@ residual: numpy nd array, of shape (nx, ny, nz) the input data will be recovered
 
 ![For example](edit.jpeg.001.jpeg)
 
+More examples
+(examples.png)
 ### Usage:
 
 ### (a) under the shell
