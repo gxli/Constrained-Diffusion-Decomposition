@@ -27,13 +27,14 @@ def constrained_diffusion_decomposition(data,
                 parameter determines how the input array is extended beyond its
                 boundaries in the convolution operation. Default is 'reflect'.
         output:
-            results of constained diffusion decomposition. Assuming that the input
+            results: of constained diffusion decomposition. Assuming that the input
             is a n-dimensional array, then the output would be a n+1 dimensional
             array. The added dimension is the scale. Component maps can be accessed
             via output[n], where n is the channel number.
 
                 output[i] contains structures of sizes larger than 2**i pixels
                 yet smaller than 2**(i+1) pixels.
+            residual: structures too large to be contained in the results
                 
     """
     
