@@ -41,5 +41,5 @@ where t is related to the scale l by t = l**2.
 
 ### References:
 
-Li 2022, Multi-Scale Decomposition of Astronomical Maps -- Constrained Diffusion Method.
+Li 2022,  <a href="https://github.com/gxli/Constrained-Diffusion-Decomposition/blob/main/example.ipynb"> Multi-Scale Decomposition of Astronomical Maps -- Constrained Diffusion Method. </a>
 
