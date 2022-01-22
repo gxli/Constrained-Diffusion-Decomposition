@@ -1,4 +1,4 @@
-An <a href="https://github.com/gxli/Constrained-Diffusion-Decomposition/blob/main/example.ipynb"> example </a> is avaliable here.
+An <a href="https://github.com/gxli/Constrained-Diffusion-Decomposition/blob/main/example.ipynb"> example </a> is avaliable.
 
 ### Input:
 
