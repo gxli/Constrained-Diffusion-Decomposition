@@ -45,7 +45,7 @@ def constrained_diffusion_decomposition(data,
     # residual = []
     # residual.append(data)
     if  max_n is not None:
-        ntot = np.min(ntot, max_n)        
+        ntot = min(ntot, max_n)        
     print("ntot", ntot)
 
     diff_image = data.copy() * 0
