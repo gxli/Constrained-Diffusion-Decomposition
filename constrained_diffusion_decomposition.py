@@ -7,9 +7,8 @@ from scipy import ndimage
 
 
 def constrained_diffusion_decomposition(data,
-                                      e_rel=3e-2,
-                                      max_n=None, sm_mode='reflect'):
-
+                                        e_rel=3e-2,
+                                        max_n=None, sm_mode='reflect'):
     """
         perform constrained diffusion decomposition
         inputs:
@@ -35,37 +34,35 @@ def constrained_diffusion_decomposition(data,
                 output[i] contains structures of sizes larger than 2**i pixels
                 yet smaller than 2**(i+1) pixels.
             residual: structures too large to be contained in the results
-                
+
     """
-    
-    ntot = int(log(min(data.shape))/log(2) - 1)    
+
+    ntot = int(log(min(data.shape)) / log(2) - 1)
     # the total number of scale map
-    
+
     result = []
     # residual = []
     # residual.append(data)
-    if  max_n is not None:
-        ntot = np.min(ntot, max_n)        
+    if max_n is not None:
+        ntot = min(ntot, max_n)
     print("ntot", ntot)
 
     diff_image = data.copy() * 0
 
     for i in range(ntot):
         print("i =", i)
-        channel_image = data.copy() * 0  
+        channel_image = data.copy() * 0
 
         # computing the step size
         scale_end = float(pow(2, i + 1))
         scale_begining = float(pow(2, i))
-        t_end = scale_end**2  / 2  # t at the end of this scale
-        t_beginning = scale_begining**2  / 2 # t at the beginning of this scale
+        t_end = scale_end**2 / 2  # t at the end of this scale
+        t_beginning = scale_begining**2 / 2  # t at the beginning of this scale
 
         if i == 0:
             delta_t_max = t_beginning * 0.1
         else:
             delta_t_max = t_beginning * e_rel
-
-
 
         niter = int((t_end - t_beginning) / delta_t_max + 0.5)
         delta_t = (t_end - t_beginning) / niter
@@ -99,7 +96,7 @@ def constrained_diffusion_decomposition(data,
 
 
 if __name__ == "__main__":
-    fname = sys.argv[1] 
+    fname = sys.argv[1]
     hdulist = fits.open(fname)
     data = hdulist[0].data
     data[np.isnan(data)] = 0
