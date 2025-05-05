@@ -50,7 +50,7 @@ result: numpy nd array, of shape (m, nx, ny, nz). The mth commponent contain str
 
 
 ```python
-import constrained_diffusion.constrained_diffusion_decomposition as cdd
+import constrained_diffusion as cdd
 
 result, residual = cdd.constrained_diffusion_decomposition(data)
 ```
@@ -172,9 +172,6 @@ for i in result:
 
 
 
-```python
-
-```
 
 ## License
  See the [LICENSE](LICENSE) file for details.
