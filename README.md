@@ -32,10 +32,10 @@ where t is related to the scale l by t = l**2.
    ```
 
 2. Use pip
- 
+
+   ```bash
+   pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.0.0    
    ```
-    pip install constained_diffusion
-    ```
 
 # Usage:
 

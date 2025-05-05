@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "constrained_diffusion"
-version = "1.0.0"
+version = "1.0.1"
 description = "Constrained diffusion decomposition: Diffusion-based Multi-Scale Analysis of Complex Iages"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -14,7 +14,6 @@ authors = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: GPL 3.0",
     "Operating System :: OS Independent",
 ]
 dependencies = [
