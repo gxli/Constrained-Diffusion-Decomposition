@@ -24,6 +24,7 @@ where t is related to the scale l by t = l**2.
 
 # Installation
 
+
 1. Use git clone
    ```bash
    git clone https://github.com/gxli/Constrained-Diffusion-Decomposition.git
@@ -34,8 +35,10 @@ where t is related to the scale l by t = l**2.
 2. Use pip
 
    ```bash
-   pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.0.0    
+   pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.0.1   
    ```
+    https://test.pypi.org/project/constrained-diffusion/1.0.1/
+   
 
 # Usage:
 

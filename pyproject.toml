@@ -20,7 +20,6 @@ dependencies = [
     "astropy>=5.0",
     "numpy>=1.20",
     "scipy>=1.7",
-    "pytest>=7.0",
 ]
 
 [project.urls]

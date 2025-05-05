@@ -686,7 +686,6 @@ License-File: LICENSE
 Requires-Dist: astropy>=5.0
 Requires-Dist: numpy>=1.20
 Requires-Dist: scipy>=1.7
-Requires-Dist: pytest>=7.0
 Dynamic: license-file
 
 
@@ -723,10 +722,10 @@ where t is related to the scale l by t = l**2.
    ```
 
 2. Use pip
- 
+
+   ```bash
+   pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.0.0    
    ```
-    pip install constained_diffusion
-    ```
 
 # Usage:
 
