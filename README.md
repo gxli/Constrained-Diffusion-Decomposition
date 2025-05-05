@@ -115,10 +115,10 @@ plt.show()
 
 
     
-![png](example/example_files/example_1_0.png)
+<!-- ![png](example/example_files/example_1_0.png) -->
     
 
-
+<img src="example/example_files/example_1_0.png"/>
 
 ```python
 # performing decomposition
