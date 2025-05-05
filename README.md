@@ -26,7 +26,7 @@ where t is related to the scale l by t = l**2.
 
 1. Use git clone
    ```bash
-   git clone https://github.com/yourusername/constrained_diffusion.git
+   git clone https://github.com/gxli/Constrained-Diffusion-Decomposition.git
    cd constrained_diffusion
    pip install .
    ```
