@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "constrained_diffusion"
+version = "1.0.0"
+description = "Constrained diffusion decomposition: Diffusion-based Multi-Scale Analysis of Complex Iages"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Guang-Xing Li", email = "ligx.ngc7293@gmail.com" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GPL 3.0",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "astropy>=5.0",
+    "numpy>=1.20",
+    "scipy>=1.7",
+    "pytest>=7.0",
+]
+
+[project.urls]
+Homepage = "https://gxli.github.io/Constrained-Diffusion-Decomposition/"
+
+
+
