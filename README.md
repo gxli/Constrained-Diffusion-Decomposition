@@ -118,7 +118,7 @@ plt.show()
 <!-- ![png](example/example_files/example_1_0.png) -->
     
 
-<img src="example/example_files/example_1_0.png"/>
+<img src="examples/example_files/example_1_0.png"/>
 
 ```python
 # performing decomposition
@@ -152,38 +152,23 @@ for i in result:
 
 
     
-![png](example/example_files/example_3_0.png)
+<img src="examples/example_files/example_3_0.png"/>
     
 
 
 
-    
-![png](example/example_files/example_3_1.png)
-    
+<img src="examples/example_files/example_3_1.png"/>
+
+  <img src="examples/example_files/example_3_2.png"/>  
 
 
+  <img src="examples/example_files/example_3_3.png"/>  
 
-    
-![png](example/example_files/example_3_2.png)
-    
+  <img src="examples/example_files/example_3_4.png"/>  
 
+  <img src="examples/example_files/example_3_5.png"/>  
 
-
-    
-![png](example/example_files/example_3_3.png)
-    
-
-
-
-    
-![png](example/example_files/example_3_4.png)
-    
-
-
-
-    
-![png](example/example_files/example_3_5.png)
-    
+  <!-- <img src="examples/example_files/example_3_6.png"/>   -->
 
 
 
