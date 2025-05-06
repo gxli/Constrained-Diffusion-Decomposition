@@ -1,5 +1,24 @@
-An <a href="https://github.com/gxli/Constrained-Diffusion-Decomposition/blob/main/example.ipynb"> example </a> is avaliable.
+An <a href="https://github.com/gxli/Constrained-Diffusion-Decomposition/blob/main/example.ipynb"> example </a> is available.
 
+
+
+### Installation
+
+
+1. Use git clone
+   ```bash
+   git clone https://github.com/gxli/Constrained-Diffusion-Decomposition.git
+   cd constrained_diffusion
+   pip install .
+   ```
+
+2. Use pip
+
+   ```bash
+   pip install --upgrade scipy numpy 
+   pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.0.1   
+   ```
+    https://test.pypi.org/project/constrained-diffusion/1.0.1/
 ### Input:
 
 numpy nd array, of shape e.g. (nx, ny, nz).
@@ -16,19 +35,12 @@ More examples
 ![more examples](examples.png)
 ### Usage:
 
-### (a) under the shell
-```sh
-python constrained_diffusion_decomposition.py input.fits
-```
-
-the output file will be named as input.fits_scale.fits.
-
-### (b) inside python
 ```python
-import constrained_diffusion_decomposition as cdd
+import constrained_diffusion as cdd
 
 result, residual = cdd.constrained_diffusion_decomposition(data)
 ```
+
 
 ### How it is done:
 
