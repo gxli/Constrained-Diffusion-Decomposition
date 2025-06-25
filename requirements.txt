@@ -1,2 +1,2 @@
-numpy>=1.00
-scipy>=1.0
+numpy>=1.0.0
+scipy>=1.0.0

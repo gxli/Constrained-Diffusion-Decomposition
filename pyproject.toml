@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "constrained_diffusion"
-version = "1.0.1"
+version = "1.0.4"
 description = "Constrained diffusion decomposition: Diffusion-based Multi-Scale Analysis of Complex Iages"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -18,8 +18,8 @@ classifiers = [
 ]
 dependencies = [
     "astropy>=5.0",
-    "numpy>=1.20",
-    "scipy>=1.7",
+    "numpy>=1.00",
+    "scipy>=1.0",
 ]
 
 [project.urls]
