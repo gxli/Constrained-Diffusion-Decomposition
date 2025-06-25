@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: constrained_diffusion
-Version: 1.0.4
+Version: 1.0.6
 Summary: Constrained diffusion decomposition: Diffusion-based Multi-Scale Analysis of Complex Iages
 Author-email: Guang-Xing Li <ligx.ngc7293@gmail.com>
 License:                     GNU GENERAL PUBLIC LICENSE
@@ -680,10 +680,9 @@ License:                     GNU GENERAL PUBLIC LICENSE
 Project-URL: Homepage, https://gxli.github.io/Constrained-Diffusion-Decomposition/
 Classifier: Programming Language :: Python :: 3
 Classifier: Operating System :: OS Independent
-Requires-Python: >=3.9
+Requires-Python: >=3.0
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: astropy>=5.0
 Requires-Dist: numpy>=1.00
 Requires-Dist: scipy>=1.0
 Dynamic: license-file
@@ -726,10 +725,10 @@ where t is related to the scale l by t = l**2.
 
    ```bash
    pip install --upgrade scipy numpy 
-   pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.0.2
+   pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.0.4
    ```
-    https://test.pypi.org/project/constrained-diffusion/1.0.1/
-   
+
+   https://test.pypi.org/project/constrained-diffusion/1.0.4/   
 
 # Usage:
 

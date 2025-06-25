@@ -39,7 +39,7 @@ where t is related to the scale l by t = l**2.
    pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.0.4
    ```
 
-   https://test.pypi.org/project/constrained-diffusion/1.0.4/   
+    https://test.pypi.org/project/constrained-diffusion/1.0.6/
 
 # Usage:
 

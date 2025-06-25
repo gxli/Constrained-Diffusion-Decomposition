@@ -1,3 +1,2 @@
-astropy>=5.0
 numpy>=1.00
 scipy>=1.0

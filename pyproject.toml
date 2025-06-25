@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "constrained_diffusion"
-version = "1.0.4"
+version = "1.0.6"
 description = "Constrained diffusion decomposition: Diffusion-based Multi-Scale Analysis of Complex Iages"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.0"
 license = { file = "LICENSE" }
 authors = [
     { name = "Guang-Xing Li", email = "ligx.ngc7293@gmail.com" }
@@ -17,7 +17,6 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "astropy>=5.0",
     "numpy>=1.00",
     "scipy>=1.0",
 ]
