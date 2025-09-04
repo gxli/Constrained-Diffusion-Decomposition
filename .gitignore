@@ -1,4 +1,7 @@
 .gitignore
 /dist
 run.sh
+src/__pycache__/
+bk
+.DS_Store
 :

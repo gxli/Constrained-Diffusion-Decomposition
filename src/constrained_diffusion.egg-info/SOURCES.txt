@@ -8,5 +8,4 @@ src/constrained_diffusion.egg-info/SOURCES.txt
 src/constrained_diffusion.egg-info/dependency_links.txt
 src/constrained_diffusion.egg-info/requires.txt
 src/constrained_diffusion.egg-info/top_level.txt
-src/tests/__init__.py
-src/tests/test_constrained_diffusion_decomposition.py
+tests/test_decomposition.py
