@@ -20,7 +20,7 @@ where the diffusion time `t` is related to the characteristic scale `l` by `t = 
 *   **Automatic Parameter Detection**: For ease of use, the decomposition scales (`min_scale`, `max_scale`) and the number of channels (`num_channels`) are automatically inferred from the input data's shape if not provided.
 *   **Hybrid Upsampling Strategy**: For maximum accuracy and efficiency, the default (`up_sample=True`) mode uses a hybrid approach:
     1.  It performs a high-resolution (4x upsampled) decomposition for small scales (<= 5 pixels) to accurately capture fine details.
-    2.  It then performs a standard, faster decomposition on the residual for all larger scales.
+    2.  It then performs a standard decomposition on the residual for all larger scales.
 *   **Constrained vs. Unconstrained Modes**:
     *   The default (`constrained=True`) uses a sign-based constrained algorithm that is guaranteed to be artifact-free and will not create new peaks or valleys.
     *   An optional `constrained=False` mode provides a standard linear diffusion decomposition, which is faster but may introduce "ringing" artifacts (negative halos around positive peaks).
