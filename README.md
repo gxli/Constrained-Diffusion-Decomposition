@@ -120,72 +120,84 @@ This example decomposes an image containing two Gaussian structures of different
 ```python
 import matplotlib.pyplot as plt
 import numpy as np
-from constrained_diffusion import constrained_diffusion_decomposition
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-# 1. Prepare sample input data
-# A wide, smooth Gaussian plus a narrow, sharp one
-N_x, N_y = 300, 200
-X, Y = np.meshgrid(np.linspace(0, N_x, N_x), np.linspace(0, N_y, N_y))
-pos = np.empty(X.shape + (2,)); pos[:, :, 0] = X; pos[:, :, 1] = Y
+# Assuming 'result' is a list of 2D arrays
+# Example: result = [np.random.rand(10, 10) for _ in range(6)]  # Dummy data for testing
+n_images = len(result)
+cols = 3  # Fixed number of columns
+rows = int(np.ceil(n_images / cols))  # Calculate required rows
 
-def multivariate_gaussian(pos, mu, Sigma):
-    """Return the multivariate Gaussian distribution on array pos."""
-    n = mu.shape
-    Sigma_det = np.linalg.det(Sigma)
-    Sigma_inv = np.linalg.inv(Sigma)
-    N = np.sqrt((2*np.pi)**n * Sigma_det)
-    fac = np.einsum('...k,kl,...l->...', pos-mu, Sigma_inv, pos-mu)
-    return np.exp(-fac / 2) / N
+# Determine the global min and max for the shared color scale
+vmin = min(np.min(img) for img in result)
+vmax = max(np.max(img) for img in result)
 
-mu = np.array([150., 100.])
-Z_large = multivariate_gaussian(pos, mu, np.array([,]))
-Z_small = multivariate_gaussian(pos, mu - 10, np.array([,]))
-Z = Z_large * 1e4 + Z_small * 1e3
+# Create a figure with a grid of subplots
+fig, axes = plt.subplots(rows, cols, figsize=(4 * cols, 4 * rows), squeeze=False)
+axes = axes.flatten()  # Flatten for easier iteration
 
-# 2. Perform decomposition with recommended settings and get the scales back
-# The function will automatically determine the number of scales.
-results, residual, scales = constrained_diffusion_decomposition(Z, return_scales=True)
+# Plot each image in the grid
+for idx, img in enumerate(result):
+    ax = axes[idx]
+    im = ax.imshow(img, cmap='viridis', vmin=vmin, vmax=vmax)  # Use shared color scale
+    ax.set_title(f'Image {idx + 1}')  # Add title for clarity
+    ax.axis('on')  # Show axes (can be turned off with ax.axis('off') if desired)
 
-# 3. Visualize the results in a grid
-num_channels = len(results)
-num_plots = num_channels + 2  # Add plots for Original and Residual
-cols = 3
-rows = int(np.ceil(num_plots / cols))
+    # Add colorbar only to the first subplot (top-left)
+    if idx == 0:
+        # Create an inset axes for the colorbar inside the first subplot
+        cax = inset_axes(ax, width="5%", height="50%", loc='lower right',
+                         bbox_to_anchor=(0, 0, 1, 1), bbox_transform=ax.transAxes)
+        fig.colorbar(im, cax=cax)  # Add colorbar to inset axes
 
-fig, axes = plt.subplots(rows, cols, figsize=(cols * 4.5, rows * 3.5))
-axes = axes.flatten()
-fig.suptitle("Constrained Diffusion Decomposition Example", fontsize=16)
+# Hide empty subplots if any
+for idx in range(len(result), len(axes)):
+    axes[idx].set_visible(False)
 
-# Plot Original
-axes.imshow(Z, cmap='viridis')
-axes.set_title('Original Image')
-
-# Plot Channels
-lower_bounds = [0.0] + list(scales[:-1])
-for i, channel in enumerate(results):
-    ax = axes[i + 1]
-    im = ax.imshow(channel, cmap='viridis')
-    title = f'{lower_bounds[i]:.1f} < Scale < {scales[i]:.1f}'
-    ax.set_title(title)
-
-# Plot Residual
-axes[num_channels + 1].imshow(residual, cmap='viridis')
-axes[num_channels + 1].set_title('Residual (Largest Structures)')
-
-# Hide unused axes
-for i in range(num_plots, len(axes)):
-    axes[i].axis('off')
-
-plt.tight_layout(rect=[0, 0, 1, 0.95])
+# Adjust layout to prevent overlap
+plt.tight_layout()
 plt.show()
 ```
 
-The output cleanly separates the small, sharp feature into the early channels, while the large, smooth structure is captured in the later channels and the residual.
+The output cleanly separates the small, sharp feature into the early channels,
+while the large, smooth structure is captured in the later channels and the
+residual.
+<img src="images/notebook_image_1.png" width="700"/>
+
+<img src="images/notebook_image_2.png" width="700"/>
+
 
 <!-- You can generate this image by running the example code and saving the plot -->
 <!-- Example image link: -->
 <!-- <img src="https://i.imgur.com/your-image-url.png" width="700"/> -->
 
+This 1D example shows the constrained diffusion decomposition can separate
+the signal made of a few Gaussians, without introducing negative ripples.
+<img src="images/notebook_image_3.png" width="700"/>
+
+
+
+This 1D example shows the option inverted=True leads to a diffusion which fills
+the gaps in the signal. This feature can be used to detect holes or absorption
+dips.
+<img src="images/notebook_image_4.png" width="700"/>
+
+
+
+This examples shows the option up_sample=True leads to improved accuracy for the
+first channels.
+<img src="images/notebook_image_5.png" width="700"/>
+
+
+Below is a comparison between standard diffusion and constrained diffusion
+decomposition, where the constrained version leads to a better localization
+behavior, and a cleaner separation of the two Gaussian blobs.
+<img src="images/notebook_image_6.png" width="700"/>
+<img src="images/notebook_image_7.png" width="700"/>
+
+
+##
+Reference: <a href="https://arxiv.org/abs/2_201.05484">Li 2022, Multi-Scale Decomposition of Astronomical Maps -- Constrained Diffusion Method</a>.
 
 ## License
 See the [LICENSE](LICENSE) file for details.
