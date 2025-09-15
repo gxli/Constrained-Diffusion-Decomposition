@@ -19,10 +19,12 @@ import os
 # DYNAMIC IMPORT BLOCK
 # =============================================================================
 try:
+    # Assuming the function is in a file named `constrained_diffusion.py`
     from constrained_diffusion import constrained_diffusion_decomposition
 except ModuleNotFoundError:
+    # If the script is in an 'examples' folder, go up one level and into 'src'
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    src_path = os.path.join(current_dir, '..', 'src')
+    src_path = os.path.join(current_dir, '../src/')
     sys.path.append(src_path)
     print(f"Added to path: {src_path}")
     from constrained_diffusion import constrained_diffusion_decomposition
@@ -31,9 +33,10 @@ except ModuleNotFoundError:
 # Helper Functions for Plotting
 # =============================================================================
 
-def plot_comparison_1d(original, res1, res2, resid1, resid2, scales, title, label1, label2):
+def plot_comparison_1d(original, res1, res2, resid1, resid2, title, label1, label2):
     """
     Generic 1D comparison plotter. Result 1 is SOLID, Result 2 is DASHED.
+    (This function does not use the scales array for plotting).
     """
     fig, ax = plt.subplots(figsize=(12, 9))
     fig.suptitle(title, fontsize=16)
@@ -66,11 +69,11 @@ def plot_comparison_1d(original, res1, res2, resid1, resid2, scales, title, labe
 def plot_decomposition_2d(original, results, residual, scales, title):
     """
     Plots a single 2D decomposition result using the 'seismic' colormap
-    and precise scale ranges in the titles.
+    and the representative scale for each channel in the titles.
     """
     all_components = [original] + results + [residual]
-    v_abs = max(abs(arr.min()) for arr in all_components)
-    v_abs = max(v_abs, max(abs(arr.max()) for arr in all_components))
+    v_abs = max(abs(arr.min()) for arr in all_components if arr.size > 0)
+    v_abs = max(v_abs, max(abs(arr.max()) for arr in all_components if arr.size > 0))
     vmin, vmax = -v_abs, v_abs
     
     num_plots = len(results) + 2
@@ -83,13 +86,17 @@ def plot_decomposition_2d(original, results, residual, scales, title):
 
     # --- Create plot info with new, more descriptive titles ---
     plot_info = [('Original Image', original)]
-    lower_bounds = [0.0] + list(scales[:-1]) # Lower bound for each channel
 
+    # CHANGED: The `scales` variable now contains the representative scale for each channel.
+    # The title should reflect this directly.
     for i, channel in enumerate(results):
-        lower = lower_bounds[i]
-        upper = scales[i]
-        channel_title = f'{lower:.1f} < Scale < {upper:.1f}'
-        plot_info.append((channel_title, channel))
+        if i < len(scales):
+            scale_val = scales[i]
+            channel_title = f'Channel {i} (Scale ≈ {scale_val:.2f})'
+            plot_info.append((channel_title, channel))
+        else:
+            # Fallback title if scales array doesn't match results
+            plot_info.append((f'Channel {i}', channel))
     
     plot_info.append(('Residual', residual))
 
@@ -100,14 +107,15 @@ def plot_decomposition_2d(original, results, residual, scales, title):
         axes[i].set_title(plot_title)
         axes[i].set_xticks([]); axes[i].set_yticks([])
 
-    if im:
-        cax = inset_axes(axes[0], width="5%", height="50%", loc='upper right')
-        fig.colorbar(im, cax=cax, orientation="vertical")
+    # Add a colorbar, attaching it to a specific axes to avoid layout issues
+    if im and num_plots > 0:
+        fig.colorbar(im, ax=axes[:num_plots].tolist(), shrink=0.8, location='right', pad=0.05)
 
+    # Hide unused axes
     for i in range(num_plots, len(axes)):
         axes[i].axis('off')
     
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.show()
 
 # =============================================================================
@@ -124,44 +132,54 @@ image_2d = (gaussian(np.sqrt((x_2d-40)**2 + (y_2d-40)**2), 0, 3) +
             gaussian(np.sqrt((x_2d-90)**2 + (y_2d-90)**2), 0, 20))
 
 # =============================================================================
-# TEST CASES (REORDERED)
+# TEST CASES
 # =============================================================================
 
 # --- Test Case 1: Constrained vs. Unconstrained Decomposition (1D) ---
 print("--- Running Test Case 1: Constrained vs. Unconstrained (1D Log) ---")
 res_con, resid_con, sc = constrained_diffusion_decomposition(
     data=signal_1d, max_scale=40, mode='log', constrained=True, up_sample=True, return_scales=True)
+# NEW: Print the returned scales
+print(f"--> Representative Scales: {np.round(sc, 2)}")
 res_uncon, resid_uncon, _ = constrained_diffusion_decomposition(
     data=signal_1d, max_scale=40, mode='log', constrained=False, up_sample=True, return_scales=True)
-plot_comparison_1d(signal_1d, res_con, res_uncon, resid_con, resid_uncon, sc,
+plot_comparison_1d(signal_1d, res_con, res_uncon, resid_con, resid_uncon,
                    'Constrained vs. Unconstrained (1D Log)', 'Constrained', 'Unconstrained')
 
 # --- Test Case 2: Inverted vs. Standard Decomposition ---
 print("\n--- Running Test Case 2: Inverted vs. Standard (1D Log) ---")
 res_std, resid_std, sc = constrained_diffusion_decomposition(
     data=signal_inverted, max_scale=50, mode='log', inverted=False, up_sample=True, return_scales=True)
+# NEW: Print the returned scales
+print(f"--> Representative Scales: {np.round(sc, 2)}")
 res_inv, resid_inv, _ = constrained_diffusion_decomposition(
     data=signal_inverted, max_scale=50, mode='log', inverted=True, up_sample=True, return_scales=True)
-plot_comparison_1d(signal_inverted, res_inv, res_std, resid_inv, resid_std, sc, 
+plot_comparison_1d(signal_inverted, res_inv, res_std, resid_inv, resid_std, 
                    'Inverted vs. Standard (1D Log)', 'Inverted', 'Standard')
 
 # --- Test Case 3: Upsampled vs. Fixed-Grid Decomposition ---
 print("\n--- Running Test Case 3: Upsampled vs. Fixed-Grid (1D Log) ---")
 res_up, resid_up, sc = constrained_diffusion_decomposition(
     data=signal_1d, max_scale=40, mode='log', up_sample=True, return_scales=True)
+# NEW: Print the returned scales
+print(f"--> Representative Scales: {np.round(sc, 2)}")
 res_noup, resid_noup, _ = constrained_diffusion_decomposition(
     data=signal_1d, max_scale=40, mode='log', up_sample=False, return_scales=True)
-plot_comparison_1d(signal_1d, res_up, res_noup, resid_up, resid_noup, sc, 
+plot_comparison_1d(signal_1d, res_up, res_noup, resid_up, resid_noup, 
                    'Upsampled vs. Fixed-Grid (1D Log)', 'Upsampled', 'Fixed Grid')
 
 # --- Test Case 4: 2D Unconstrained Decomposition ---
 print("\n--- Running Test Case 4: 2D Unconstrained Decomposition ---")
 res, resid, sc = constrained_diffusion_decomposition(
     data=image_2d, max_scale=32, mode='log', constrained=False, up_sample=True, return_scales=True)
+# NEW: Print the returned scales
+print(f"--> Representative Scales: {np.round(sc, 2)}")
 plot_decomposition_2d(image_2d, res, resid, sc, '2D Decomposition (Unconstrained)')
 
 # --- Test Case 5: 2D Constrained Decomposition ---
 print("\n--- Running Test Case 5: 2D Constrained Decomposition ---")
 res, resid, sc = constrained_diffusion_decomposition(
     data=image_2d, max_scale=32, mode='log', constrained=True, up_sample=True, return_scales=True)
+# NEW: Print the returned scales
+print(f"--> Representative Scales: {np.round(sc, 2)}")
 plot_decomposition_2d(image_2d, res, resid, sc, '2D Decomposition (Constrained)')
