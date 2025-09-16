@@ -2,69 +2,7 @@ import numpy as np
 from scipy import ndimage
 from math import log
 
-# =============================================================================
-# CORE ENGINE (UNCHANGED)
-# =============================================================================
-def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='reflect', constrained=True, inverted=False):
-    """
-    (Core Engine) Perform diffusion decomposition on n-dimensional data.
-    """
-    if data.size == 0:
-        raise ValueError("Input data array is empty")
-    if not np.all(np.diff(scales) > -1e-9):
-        raise ValueError("The 'scales' array must be sorted in increasing order.")
 
-    ntot = len(scales)
-    print(f"Decomposing across {ntot} user-specified scales: {np.round(scales, 2)}")
-
-    if constrained:
-        if inverted: print("Running in CONSTRAINED (inverted) mode.")
-        else: print("Running in CONSTRAINED (standard) mode.")
-    else:
-        print("Running in UNCONSTRAINED (linear diffusion) mode.")
-
-    current_data = data.copy()
-    result = []
-    t_beginning = 0.0
-
-    for i, scale_end in enumerate(scales):
-        channel_image = np.zeros_like(current_data)
-        t_end = scale_end**2 / 2
-        if t_beginning > 0: delta_t_max = t_beginning * e_rel
-        else: delta_t_max = t_end * e_rel
-        if delta_t_max <= 0: delta_t_max = (t_end - t_beginning) * 0.1
-        niter = int((t_end - t_beginning) / delta_t_max + 0.5)
-        niter = max(1, niter)
-        delta_t = (t_end - t_beginning) / niter
-        kernel_size = np.sqrt(2 * delta_t)
-        print(f"Channel {i}: Scale < {scale_end:.2f} pixels, Iterations: {niter}")
-
-        for _ in range(niter):
-            smooth_image = ndimage.gaussian_filter(current_data, kernel_size, mode=sm_mode)
-            diff_image = None
-            if constrained:
-                diff_image_pos = current_data - np.minimum(current_data, smooth_image)
-                diff_image_neg = current_data - np.maximum(current_data, smooth_image)
-                diff_image = np.zeros_like(current_data)
-                if not inverted:
-                    pos1 = np.where(np.logical_and(diff_image_pos > 0, current_data > 0))
-                    pos2 = np.where(np.logical_and(diff_image_neg < 0, current_data < 0))
-                    diff_image[pos1] = diff_image_pos[pos1]; diff_image[pos2] = diff_image_neg[pos2]
-                else:
-                    pos1 = np.where(np.logical_and(diff_image_neg < 0, current_data > 0))
-                    pos2 = np.where(np.logical_and(diff_image_pos > 0, current_data < 0))
-                    diff_image[pos1] = diff_image_neg[pos1]; diff_image[pos2] = diff_image_pos[pos2]
-            else:
-                diff_image = current_data - smooth_image
-            channel_image += diff_image
-            current_data -= diff_image
-        result.append(channel_image)
-        t_beginning = t_end
-    residual = current_data
-    return result, residual
-import numpy as np
-from scipy import ndimage
-from math import log
 
 # =============================================================================
 # CORE ENGINE (UNCHANGED)
