@@ -9,3 +9,4 @@ src/constrained_diffusion.egg-info/dependency_links.txt
 src/constrained_diffusion.egg-info/requires.txt
 src/constrained_diffusion.egg-info/top_level.txt
 tests/test_decomposition.py
+tests/test_lin_log.py

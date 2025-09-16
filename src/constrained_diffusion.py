@@ -128,9 +128,9 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
     return result, residual
 
 
-# =============================================================================
-# MAIN WRAPPER (MODIFIED)
-# =============================================================================
+# Note: This function requires the core engine 'constrained_multiscale_decomposition'
+# to be defined in the same file or imported.
+
 def constrained_diffusion_decomposition(
     data,
     num_channels=None,
@@ -152,29 +152,30 @@ def constrained_diffusion_decomposition(
     Args:
         data (np.ndarray): n-dimensional array.
         num_channels (int, optional): The number of channels. If None, calculated automatically.
-                                      This is ignored for linear mode if `linear_scale_step` is set.
+                                      For 'lin' mode, this argument is ignored.
         max_scale (float, optional): The largest scale size. If None, set to max(data.shape) / 2.
         min_scale (float, optional): The smallest scale size. Defaults to 1.
         mode (str): Scale generation mode: 'log' (default) or 'lin'.
-        log_scale_base (float): The base for logarithmic scale generation. A smaller base
-                                (e.g., 1.5) creates more, finer channels. Defaults to 2.0.
-        linear_scale_step (float, optional): If set for linear mode, defines the step size
-                                             between scales, overriding `num_channels`.
+        log_scale_base (float): The base for logarithmic scale generation. Defaults to 2.0.
+        linear_scale_step (float, optional): If mode is 'lin', this defines the step size
+                                             between scales. This argument is required for 'lin' mode.
         e_rel (float): Relative error for diffusion step size.
         sm_mode (str): Mode for array boundary extension in convolution.
         up_sample (bool): If True (default), uses the hybrid upsampling strategy.
         constrained (bool): If True (default), uses the sign-based constrained algorithm.
         inverted (bool): If True, decomposes depressions ("holes") instead of peaks.
-        return_scales (bool): If True, a tuple of representative scales for each channel is
-                              also returned. Defaults to False.
+        return_scales (bool): If True, the array of scale boundaries (upper edge of each channel)
+                              is also returned. Defaults to False.
 
     Returns:
         tuple: By default, returns a tuple of `(results, residual)`.
-               If `return_scales=True`, returns `(results, residual, representative_scales)`.
+               If `return_scales=True`, returns `(results, residual, scale_edges)`.
     """
     # --- Step 1: Validate inputs and determine scale range ---
     if mode == 'log' and log_scale_base <= 1:
         raise ValueError("log_scale_base must be greater than 1 for logarithmic mode.")
+    if mode == 'lin' and linear_scale_step is None:
+        raise ValueError("`linear_scale_step` must be provided when mode is 'lin'.")
     if mode == 'lin' and linear_scale_step is not None and linear_scale_step <= 0:
         raise ValueError("linear_scale_step must be a positive number.")
 
@@ -190,13 +191,9 @@ def constrained_diffusion_decomposition(
     # --- Step 2: Generate Scale Edges ---
     scale_edges = None
     if mode == 'log':
-        # PART 1: Determine the number of channels based on user's range
         if num_channels is None:
             print("Automatically determining num_channels for log mode.")
-            # This formula calculates how many integer steps of `log_scale_base` fit
-            # between the min and max scales. Epsilon handles floating point edge cases.
-            if effective_max_scale <= effective_min_scale:
-                effective_num_channels = 0
+            if effective_max_scale <= effective_min_scale: effective_num_channels = 0
             else:
                 log_diff = np.log(effective_max_scale * (1 + 1e-9)) - np.log(effective_min_scale)
                 effective_num_channels = int(log_diff / np.log(log_scale_base)) + 1
@@ -207,39 +204,30 @@ def constrained_diffusion_decomposition(
         if effective_num_channels < 1:
             raise ValueError(f"Number of channels must be at least 1. Calculated value was {effective_num_channels}.")
 
-        # PART 2: Generate scales by creating a rigorous sequence from min_scale
         start_power = np.log(effective_min_scale) / np.log(log_scale_base)
-        # The stop power is now calculated from the start power and number of steps,
-        # ensuring the final scale is a perfect multiple of the base.
         stop_power = start_power + (effective_num_channels - 1)
+        scale_edges = np.logspace(start_power, stop_power, num=effective_num_channels, base=log_scale_base)
         
-        scale_edges = np.logspace(
-            start_power,
-            stop_power,
-            num=effective_num_channels,
-            base=log_scale_base
-        )
-        
-        # PART 3: Inform the user about the explicit max_scale being used
         adjusted_max_scale = scale_edges[-1]
         if abs(adjusted_max_scale - effective_max_scale) > 1e-6:
              print(f"NOTE: Adjusted max_scale from {effective_max_scale:.2f} to {adjusted_max_scale:.2f} to align with log_scale_base.")
 
     elif mode == 'lin':
-        if linear_scale_step is not None:
-            print(f"Generating linear scales with a step of {linear_scale_step}.")
-            scale_edges = np.arange(effective_min_scale, effective_max_scale + linear_scale_step, linear_scale_step)
+        print(f"Generating linear scales with a step of {linear_scale_step}.")
+        if effective_max_scale <= effective_min_scale: effective_num_channels = 0
         else:
-            if num_channels is None:
-                print("Automatically determining num_channels for lin mode.")
-                effective_num_channels = int(np.floor(effective_max_scale - effective_min_scale))
-                print(f"--> Determined num_channels = {effective_num_channels}")
-            else:
-                effective_num_channels = int(num_channels)
+            scale_range = effective_max_scale - effective_min_scale
+            effective_num_channels = int(np.floor(scale_range / linear_scale_step)) + 1
+        print(f"--> Determined num_channels = {effective_num_channels}")
+        
+        if effective_num_channels < 1:
+            raise ValueError(f"Number of channels must be at least 1. Calculated value was {effective_num_channels}.")
+            
+        scale_edges = effective_min_scale + np.arange(effective_num_channels) * linear_scale_step
 
-            if effective_num_channels < 1:
-                raise ValueError(f"Number of channels must be at least 1. Calculated value was {effective_num_channels}.")
-            scale_edges = np.linspace(effective_min_scale, effective_max_scale, num=effective_num_channels)
+        adjusted_max_scale = scale_edges[-1]
+        if (effective_max_scale - adjusted_max_scale) > 1e-6:
+             print(f"NOTE: Adjusted max_scale from {effective_max_scale:.2f} to {adjusted_max_scale:.2f} to align with linear_scale_step.")
 
     if scale_edges is None or len(scale_edges) == 0:
         raise ValueError("Scale generation failed. Check your min/max_scale and step/num_channels parameters.")
@@ -248,10 +236,7 @@ def constrained_diffusion_decomposition(
     if not constrained and inverted:
         print("Warning: 'inverted=True' has no effect when 'constrained=False'. Ignoring.")
 
-    core_kwargs = {
-        'e_rel': e_rel, 'sm_mode': sm_mode,
-        'constrained': constrained, 'inverted': inverted if constrained else False
-    }
+    core_kwargs = {'e_rel': e_rel, 'sm_mode': sm_mode, 'constrained': constrained, 'inverted': inverted if constrained else False}
 
     results = []
     residual = data
@@ -268,8 +253,8 @@ def constrained_diffusion_decomposition(
             upsampled_scales = scales_small * zoom_factor
             upsampled_scales = np.maximum(upsampled_scales, zoom_factor)
             upsampled_scales = np.unique(upsampled_scales)
-            results_small_up, residual_up = constrained_multiscale_decomposition(
-                upsampled_data, upsampled_scales, **core_kwargs)
+            # NOTE: We need to import the core engine for this call to work
+            results_small_up, residual_up = constrained_multiscale_decomposition(upsampled_data, upsampled_scales, **core_kwargs)
             print('Downsampling small-scale results...')
             results_small = [ndimage.zoom(res, 1/zoom_factor, order=1) for res in results_small_up]
             results.extend(results_small)
@@ -277,32 +262,21 @@ def constrained_diffusion_decomposition(
 
         if len(scales_large) > 0:
             print(f"\n--- STAGE 2: Performing fixed-grid decomposition on residual for scales > {switch_scale} ---")
-            results_large, residual_large = constrained_multiscale_decomposition(
-                current_data, scales_large, **core_kwargs)
+            # NOTE: We need to import the core engine for this call to work
+            results_large, residual_large = constrained_multiscale_decomposition(current_data, scales_large, **core_kwargs)
             results.extend(results_large)
             residual = residual_large
         else:
             residual = current_data
     else:
         print(f'\n--- Performing standard fixed-grid decomposition for all scales ---')
+        # NOTE: We need to import the core engine for this call to work
         results, residual = constrained_multiscale_decomposition(data, scale_edges, **core_kwargs)
         
-    # --- Step 4: Calculate Representative Scales for Return ---
+    # --- Step 4: Return the results ---
     if return_scales:
-        all_boundaries = np.insert(scale_edges, 0, 0)
-        representative_scales = []
-        for i in range(len(all_boundaries) - 1):
-            l_smaller = all_boundaries[i]
-            l_larger = all_boundaries[i+1]
-            if mode == 'log':
-                if l_smaller == 0:
-                    rep_scale = l_larger / np.sqrt(log_scale_base) # Sensible center for the first bin
-                else:
-                    rep_scale = np.sqrt(l_smaller * l_larger) # Geometric mean
-            else: # mode == 'lin'
-                rep_scale = 0.5 * (l_smaller + l_larger) # Arithmetic mean
-            representative_scales.append(rep_scale)
-        
-        return results, residual, np.array(representative_scales)
+        # Return the actual scale boundaries used in the decomposition for consistency.
+        return results, residual, scale_edges
     else:
         return results, residual
+    

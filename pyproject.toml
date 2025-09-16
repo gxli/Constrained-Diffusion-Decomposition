@@ -1,10 +1,7 @@
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
 
 [project]
 name = "constrained_diffusion"
-version = "1.2.0"
+version = "1.2.2"
 description = "Constrained diffusion decomposition: Diffusion-based Multi-Scale Analysis of Complex Iages"
 readme = "README.md"
 requires-python = ">=3.0"
@@ -20,6 +17,13 @@ dependencies = [
     "numpy>=1.00",
     "scipy>=1.0",
 ]
+
+
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 
 [project.urls]
 Homepage = "https://gxli.github.io/Constrained-Diffusion-Decomposition/"
