@@ -17,7 +17,7 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
         raise ValueError("The 'scales' array must be sorted in increasing order.")
 
     ntot = len(scales)
-    print(f"Decomposing across {ntot} user-specified scales: {np.round(scales, 2)}")
+    # print(f"Decomposing across {ntot} user-specified scales: {np.round(scales, 2)}")
 
     if constrained:
         if inverted: print("Running in CONSTRAINED (inverted) mode.")
