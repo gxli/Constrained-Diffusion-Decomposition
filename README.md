@@ -42,7 +42,7 @@ where the diffusion time `t` is related to the characteristic scale `l` by `t = 
     ```
 3.  **Via `pip`:**
     ```bash
-    pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.2.2
+    pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.2.3
      ```
 ## Usage
 

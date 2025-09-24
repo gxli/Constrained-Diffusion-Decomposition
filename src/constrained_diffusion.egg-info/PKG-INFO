@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: constrained_diffusion
-Version: 1.2.2
+Version: 1.2.3
 Summary: Constrained diffusion decomposition: Diffusion-based Multi-Scale Analysis of Complex Iages
 Author-email: Guang-Xing Li <ligx.ngc7293@gmail.com>
 License:                     GNU GENERAL PUBLIC LICENSE
@@ -731,7 +731,7 @@ where the diffusion time `t` is related to the characteristic scale `l` by `t = 
     ```
 3.  **Via `pip`:**
     ```bash
-    pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.2.0   
+    pip install -i https://test.pypi.org/simple/ constrained-diffusion==1.2.2
      ```
 ## Usage
 
