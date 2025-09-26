@@ -5,11 +5,42 @@ from math import log
 
 
 # =============================================================================
-# CORE ENGINE (UNCHANGED)
+# CORE ENGINE
 # =============================================================================
-def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='reflect', constrained=True, inverted=False):
+def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='reflect', constrained=True, inverted=False, verbose=True):
     """
     (Core Engine) Perform diffusion decomposition on n-dimensional data.
+
+    This function iteratively decomposes an input array into a series of "channels",
+    each representing structures within a specific range of scales. It uses a
+    diffusion-like process, where each step involves smoothing the data and
+    calculating the difference.
+
+    Args:
+        data (np.ndarray): The n-dimensional input array to decompose.
+        scales (list or np.ndarray): A sorted list of scale boundaries defining the upper
+                                     edge of each decomposition channel.
+        e_rel (float): The relative error tolerance used to determine the number of
+                       iterations for each scale channel. A smaller value leads to
+                       more iterations and higher accuracy. Defaults to 3e-2.
+        sm_mode (str): The mode parameter for `ndimage.gaussian_filter`, specifying
+                       how to handle array boundaries. Defaults to 'reflect'.
+        constrained (bool): If True (default), uses a sign-preserving constraint where
+                            the decomposition at a pixel cannot overshoot the original
+                            data value. If False, performs standard linear diffusion.
+        inverted (bool): If True and `constrained` is also True, the algorithm is
+                         modified to decompose negative structures (depressions or "holes")
+                         instead of positive peaks. Has no effect if `constrained` is False.
+                         Defaults to False.
+        verbose (bool): If True (default), prints progress information for each channel
+                        to the console.
+
+    Returns:
+        tuple: A tuple containing:
+               - result (list of np.ndarray): A list where each element is an array
+                 representing a single scale channel of the decomposition.
+               - residual (np.ndarray): The final smooth residual left after all
+                 scale channels have been extracted.
     """
     if data.size == 0:
         raise ValueError("Input data array is empty")
@@ -17,13 +48,13 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
         raise ValueError("The 'scales' array must be sorted in increasing order.")
 
     ntot = len(scales)
-    # print(f"Decomposing across {ntot} user-specified scales: {np.round(scales, 2)}")
 
-    if constrained:
-        if inverted: print("Running in CONSTRAINED (inverted) mode.")
-        else: print("Running in CONSTRAINED (standard) mode.")
-    else:
-        print("Running in UNCONSTRAINED (linear diffusion) mode.")
+    if verbose:
+        if constrained:
+            if inverted: print("Running in CONSTRAINED (inverted) mode.")
+            else: print("Running in CONSTRAINED (standard) mode.")
+        else:
+            print("Running in UNCONSTRAINED (linear diffusion) mode.")
 
     current_data = data.copy()
     result = []
@@ -39,7 +70,8 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
         niter = max(1, niter)
         delta_t = (t_end - t_beginning) / niter
         kernel_size = np.sqrt(2 * delta_t)
-        print(f"Channel {i}: Scale < {scale_end:.2f} pixels, Iterations: {niter}")
+        if verbose:
+            print(f"Channel {i}: Scale < {scale_end:.2f} pixels, Iterations: {niter}")
 
         for _ in range(niter):
             smooth_image = ndimage.gaussian_filter(current_data, kernel_size, mode=sm_mode)
@@ -66,9 +98,6 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
     return result, residual
 
 
-# Note: This function requires the core engine 'constrained_multiscale_decomposition'
-# to be defined in the same file or imported.
-
 def constrained_diffusion_decomposition(
     data,
     num_channels=None,
@@ -82,7 +111,8 @@ def constrained_diffusion_decomposition(
     up_sample=True,
     constrained=True,
     inverted=False,
-    return_scales=False
+    return_scales=False,
+    verbose=True
 ):
     """
     Overall wrapper for diffusion decomposition with a highly automated interface.
@@ -104,6 +134,7 @@ def constrained_diffusion_decomposition(
         inverted (bool): If True, decomposes depressions ("holes") instead of peaks.
         return_scales (bool): If True, the array of scale boundaries (upper edge of each channel)
                               is also returned. Defaults to False.
+        verbose (bool): If True (default), prints progress and diagnostic information to the console.
 
     Returns:
         tuple: By default, returns a tuple of `(results, residual)`.
@@ -120,7 +151,8 @@ def constrained_diffusion_decomposition(
     effective_min_scale = float(min_scale)
     if max_scale is None:
         effective_max_scale = float(max(data.shape) / 2)
-        print(f"Automatically determined max_scale = {effective_max_scale:.2f} (from data shape {data.shape})")
+        if verbose:
+            print(f"Automatically determined max_scale = {effective_max_scale:.2f} (from data shape {data.shape})")
     else:
         effective_max_scale = float(max_scale)
     if effective_max_scale <= effective_min_scale:
@@ -130,12 +162,14 @@ def constrained_diffusion_decomposition(
     scale_edges = None
     if mode == 'log':
         if num_channels is None:
-            print("Automatically determining num_channels for log mode.")
+            if verbose:
+                print("Automatically determining num_channels for log mode.")
             if effective_max_scale <= effective_min_scale: effective_num_channels = 0
             else:
                 log_diff = np.log(effective_max_scale * (1 + 1e-9)) - np.log(effective_min_scale)
                 effective_num_channels = int(log_diff / np.log(log_scale_base)) + 1
-            print(f"--> Determined num_channels = {effective_num_channels}")
+            if verbose:
+                print(f"--> Determined num_channels = {effective_num_channels}")
         else:
             effective_num_channels = int(num_channels)
 
@@ -148,15 +182,18 @@ def constrained_diffusion_decomposition(
         
         adjusted_max_scale = scale_edges[-1]
         if abs(adjusted_max_scale - effective_max_scale) > 1e-6:
-             print(f"NOTE: Adjusted max_scale from {effective_max_scale:.2f} to {adjusted_max_scale:.2f} to align with log_scale_base.")
+             if verbose:
+                 print(f"NOTE: Adjusted max_scale from {effective_max_scale:.2f} to {adjusted_max_scale:.2f} to align with log_scale_base.")
 
     elif mode == 'lin':
-        print(f"Generating linear scales with a step of {linear_scale_step}.")
+        if verbose:
+            print(f"Generating linear scales with a step of {linear_scale_step}.")
         if effective_max_scale <= effective_min_scale: effective_num_channels = 0
         else:
             scale_range = effective_max_scale - effective_min_scale
             effective_num_channels = int(np.floor(scale_range / linear_scale_step)) + 1
-        print(f"--> Determined num_channels = {effective_num_channels}")
+        if verbose:
+            print(f"--> Determined num_channels = {effective_num_channels}")
         
         if effective_num_channels < 1:
             raise ValueError(f"Number of channels must be at least 1. Calculated value was {effective_num_channels}.")
@@ -165,16 +202,17 @@ def constrained_diffusion_decomposition(
 
         adjusted_max_scale = scale_edges[-1]
         if (effective_max_scale - adjusted_max_scale) > 1e-6:
-             print(f"NOTE: Adjusted max_scale from {effective_max_scale:.2f} to {adjusted_max_scale:.2f} to align with linear_scale_step.")
+             if verbose:
+                 print(f"NOTE: Adjusted max_scale from {effective_max_scale:.2f} to {adjusted_max_scale:.2f} to align with linear_scale_step.")
 
     if scale_edges is None or len(scale_edges) == 0:
         raise ValueError("Scale generation failed. Check your min/max_scale and step/num_channels parameters.")
 
     # --- Step 3: Perform decomposition ---
-    if not constrained and inverted:
+    if not constrained and inverted and verbose:
         print("Warning: 'inverted=True' has no effect when 'constrained=False'. Ignoring.")
 
-    core_kwargs = {'e_rel': e_rel, 'sm_mode': sm_mode, 'constrained': constrained, 'inverted': inverted if constrained else False}
+    core_kwargs = {'e_rel': e_rel, 'sm_mode': sm_mode, 'constrained': constrained, 'inverted': inverted if constrained else False, 'verbose': verbose}
 
     results = []
     residual = data
@@ -186,35 +224,34 @@ def constrained_diffusion_decomposition(
         
         current_data = data
         if len(scales_small) > 0:
-            print(f"\n--- STAGE 1: Performing high-resolution decomposition for scales <= {switch_scale} ---")
+            if verbose:
+                print(f"\n--- STAGE 1: Performing high-resolution decomposition for scales <= {switch_scale} ---")
             upsampled_data = ndimage.zoom(current_data, zoom_factor, order=1)
             upsampled_scales = scales_small * zoom_factor
             upsampled_scales = np.maximum(upsampled_scales, zoom_factor)
             upsampled_scales = np.unique(upsampled_scales)
-            # NOTE: We need to import the core engine for this call to work
             results_small_up, residual_up = constrained_multiscale_decomposition(upsampled_data, upsampled_scales, **core_kwargs)
-            print('Downsampling small-scale results...')
+            if verbose:
+                print('Downsampling small-scale results...')
             results_small = [ndimage.zoom(res, 1/zoom_factor, order=1) for res in results_small_up]
             results.extend(results_small)
             current_data = ndimage.zoom(residual_up, 1/zoom_factor, order=1)
 
         if len(scales_large) > 0:
-            print(f"\n--- STAGE 2: Performing fixed-grid decomposition on residual for scales > {switch_scale} ---")
-            # NOTE: We need to import the core engine for this call to work
+            if verbose:
+                print(f"\n--- STAGE 2: Performing fixed-grid decomposition on residual for scales > {switch_scale} ---")
             results_large, residual_large = constrained_multiscale_decomposition(current_data, scales_large, **core_kwargs)
             results.extend(results_large)
             residual = residual_large
         else:
             residual = current_data
     else:
-        print(f'\n--- Performing standard fixed-grid decomposition for all scales ---')
-        # NOTE: We need to import the core engine for this call to work
+        if verbose:
+            print(f'\n--- Performing standard fixed-grid decomposition for all scales ---')
         results, residual = constrained_multiscale_decomposition(data, scale_edges, **core_kwargs)
         
     # --- Step 4: Return the results ---
     if return_scales:
-        # Return the actual scale boundaries used in the decomposition for consistency.
         return results, residual, scale_edges
     else:
         return results, residual
-    
