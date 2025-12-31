@@ -15,6 +15,15 @@ Assuming an input of I(x, y), the decomposition is achieved by solving the equat
 ```
 where the diffusion time `t` is related to the characteristic scale `l` by `t = l²/2`.
 
+### Connection to ReLU (Structural Rectification)
+While the equation above uses the Heaviside step function $\mathcal{H}$, it is insightful to view this operation through the lens of modern Deep Learning. The constraint is mathematically equivalent to applying a **Rectified Linear Unit (ReLU)** logic to the curvature of the image.
+
+For positive structures ($I > 0$), the evolution simplifies to:
+
+```math
+\frac{\partial I}{\partial t} = -\text{ReLU}(-\nabla^2 I) \equiv \min(0, \nabla^2 I)
+```
+
 ## Key Features
 
 *   **Automatic Parameter Detection**: For ease of use, the decomposition scales (`min_scale`, `max_scale`) and the number of channels (`num_channels`) are automatically inferred from the input data's shape if not provided.
