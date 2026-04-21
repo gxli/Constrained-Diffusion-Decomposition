@@ -16,8 +16,17 @@ classifiers = [
 dependencies = [
     "numpy>=1.00",
     "scipy>=1.0",
+    "astropy>=5.0",
 ]
 
+[project.scripts]
+cdd-fits-decompose = "morph_informed_decomposition:main"
+cdd-morpho-decompose = "morph_informed_decomposition:main"
+cdd-estimate-channel-scales = "utils:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["constrained_diffusion", "morph_informed_decomposition", "utils"]
 
 
 [build-system]
@@ -27,6 +36,3 @@ build-backend = "setuptools.build_meta"
 
 [project.urls]
 Homepage = "https://gxli.github.io/Constrained-Diffusion-Decomposition/"
-
-
-
