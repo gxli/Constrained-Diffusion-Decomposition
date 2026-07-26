@@ -1,2 +1,7 @@
 numpy>=1.00
 scipy>=1.0
+astropy>=5.0
+
+[gpu]
+torch>=2.0
+monai>=1.3

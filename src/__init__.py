@@ -1,2 +1,3 @@
-# Package initialization for src
-from .constrained_diffusion import constrained_diffusion_decomposition
+# Package initialization for src.
+# The installed package entry points are in the top-level modules;
+# this __init__ is intentionally minimal to avoid circular imports.

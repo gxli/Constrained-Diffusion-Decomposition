@@ -1,0 +1,4 @@
+[console_scripts]
+cdd-estimate-channel-scales = utils:main
+cdd-fits-decompose = morph_informed_decomposition:main
+cdd-morpho-decompose = morph_informed_decomposition:main

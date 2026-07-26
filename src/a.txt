@@ -1,3 +1,5 @@
+# Package initialization for src
+from .constrained_diffusion import constrained_diffusion_decomposition
 import numpy as np
 from scipy import ndimage
 try:
@@ -18,37 +20,32 @@ try:
 except ImportError:
     TORCH_AVAILABLE = False
 
-MONAI_AVAILABLE = False
-
-
-def _ensure_monai():
-    """Lazy-import MONAI to avoid import-time deadlocks on some platforms."""
-    global MONAI_AVAILABLE
-    if MONAI_AVAILABLE:
-        return True
-    try:
-        global sliding_window_inference
-        from monai.inferers import sliding_window_inference  # noqa: F811
-        MONAI_AVAILABLE = True
-        return True
-    except ImportError:
-        return False
+try:
+    from monai.inferers import sliding_window_inference
+    MONAI_AVAILABLE = True
+except ImportError:
+    MONAI_AVAILABLE = False
 
 
 class _MonaiScaleCutoff(RuntimeError):
     """Raised when MONAI ROI/window cannot safely support the requested scale."""
     pass
 
-
 def _get_optimal_device(device_arg=None):
     """
     Determine the best available compute device (CUDA, MPS, or CPU).
+    
+    Args:
+        device_arg (str, optional): A specific device string (e.g., 'cuda:0'). Defaults to None.
+        
+    Returns:
+        torch.device: The optimal PyTorch device available.
     """
-    if device_arg is not None:
+    if device_arg is not None: 
         return torch.device(device_arg)
-    if torch.cuda.is_available():
+    if torch.cuda.is_available(): 
         return torch.device('cuda')
-    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available(): 
         return torch.device('mps')
     return torch.device('cpu')
 
@@ -57,13 +54,19 @@ def _gaussian_filter_nd_pytorch(tensor, sigma, mode='reflect'):
     """
     Highly optimized N-dimensional Gaussian filter using PyTorch separable convolutions.
     Uses fast-paths for 1D, 2D, and 3D data to avoid costly memory transpositions.
+    
+    Args:
+        tensor (torch.Tensor): N-dimensional input tensor without batch/channel dimensions.
+        sigma (float): Standard deviation for the Gaussian kernel.
+        mode (str, optional): Padding mode. Defaults to 'reflect'.
+        
+    Returns:
+        torch.Tensor: The Gaussian blurred tensor.
     """
-    if sigma <= 0:
-        return tensor
+    if sigma <= 0: return tensor
     radius = int(4.0 * sigma + 0.5)
-    if radius == 0:
-        return tensor
-
+    if radius == 0: return tensor
+    
     # Pre-calculate 1D kernel
     k = torch.arange(-radius, radius + 1, device=tensor.device, dtype=tensor.dtype)
     kernel = torch.exp(-0.5 * (k / sigma) ** 2)
@@ -77,7 +80,7 @@ def _gaussian_filter_nd_pytorch(tensor, sigma, mode='reflect'):
     if dims == 1:
         out = F.pad(out, (radius, radius), mode=pad_mode)
         out = F.conv1d(out, kernel.view(1, 1, -1))
-
+        
     elif dims == 2:
         k_y = kernel.view(1, 1, -1, 1)
         k_x = kernel.view(1, 1, 1, -1)
@@ -85,11 +88,10 @@ def _gaussian_filter_nd_pytorch(tensor, sigma, mode='reflect'):
         out = F.conv2d(out, k_x)
         out = F.pad(out, (0, 0, radius, radius), mode=pad_mode)
         out = F.conv2d(out, k_y)
-
+        
     elif dims == 3:
         # F.pad does not support 'reflect' for 3D natively; fallback to replicate
-        if pad_mode == 'reflect':
-            pad_mode = 'replicate'
+        if pad_mode == 'reflect': pad_mode = 'replicate'
         k_z = kernel.view(1, 1, -1, 1, 1)
         k_y = kernel.view(1, 1, 1, -1, 1)
         k_x = kernel.view(1, 1, 1, 1, -1)
@@ -99,7 +101,7 @@ def _gaussian_filter_nd_pytorch(tensor, sigma, mode='reflect'):
         out = F.conv3d(out, k_y)
         out = F.pad(out, (0, 0, 0, 0, radius, radius), mode=pad_mode)
         out = F.conv3d(out, k_z)
-
+        
     else:
         # Generic N-dimensional fallback (requires transposing)
         kernel = kernel.view(1, 1, -1)
@@ -150,7 +152,7 @@ def _gaussian_filter_nd_pytorch_backend(
     tensor,
     sigma,
     mode='reflect',
-    gaussian_backend='cuda',  # Default to cuda to avoid MONAI grid stripes
+    gaussian_backend='monai',
     monai_roi_size=96,
     monai_overlap=0.25,
     monai_sw_batch_size=1,
@@ -160,7 +162,7 @@ def _gaussian_filter_nd_pytorch_backend(
         return _gaussian_filter_nd_pytorch(tensor, sigma, mode=mode)
     if gaussian_backend != 'monai':
         raise ValueError("gaussian_backend must be one of {'cuda', 'monai'}")
-    if not _ensure_monai():
+    if not MONAI_AVAILABLE:
         return _gaussian_filter_nd_pytorch(tensor, sigma, mode=mode)
 
     radius = int(4.0 * float(sigma) + 0.5)
@@ -192,24 +194,35 @@ def _gaussian_filter_nd_pytorch_backend(
 
 
 def _zoom_tensor(tensor, zoom_factor):
+    """
+    Mimics scipy.ndimage.zoom for N-dimensional up/down sampling in PyTorch.
+    
+    Args:
+        tensor (torch.Tensor): N-dimensional input tensor.
+        zoom_factor (float): The multiplier for spatial scaling.
+        
+    Returns:
+        torch.Tensor: Interpolated tensor.
+    """
     dims = tensor.dim()
     out = tensor.unsqueeze(0).unsqueeze(0)
+    
+    if dims == 1: interp_mode = 'linear'
+    elif dims == 2: interp_mode = 'bilinear'
+    elif dims == 3: interp_mode = 'trilinear'
+    else: interp_mode = 'nearest'
 
-    if dims == 1:
-        interp_mode = 'linear'
-    elif dims == 2:
-        interp_mode = 'bilinear'
-    elif dims == 3:
-        interp_mode = 'trilinear'
-    else:
-        interp_mode = 'nearest'
-
+    # align_corners must not be passed when using nearest interpolation
     kwargs = {'align_corners': False} if interp_mode != 'nearest' else {}
     out = F.interpolate(out, scale_factor=zoom_factor, mode=interp_mode, **kwargs)
     return out.squeeze(0).squeeze(0)
 
 
 def _downsample_mean_numpy(arr, factor):
+    """
+    Downsample by block-mean pooling with integer factor.
+    Crops trailing pixels that do not fit a full block.
+    """
     if factor <= 1:
         return arr
     if abs(factor - int(round(factor))) > 1e-9:
@@ -229,6 +242,10 @@ def _downsample_mean_numpy(arr, factor):
 
 
 def _downsample_mean_tensor(tensor, factor):
+    """
+    Downsample by block-mean pooling with integer factor for 1D/2D/3D tensors.
+    Crops trailing voxels that do not fit a full block.
+    """
     if factor <= 1:
         return tensor
     if abs(factor - int(round(factor))) > 1e-9:
@@ -253,6 +270,10 @@ def _downsample_mean_tensor(tensor, factor):
 
 
 def _map_low_scale_to_stage2_channel(stage2_scales, low_scale):
+    """
+    Map a low-resolution equivalent scale to a Stage-2 channel index.
+    Uses the first Stage-2 edge that is >= low_scale (left insertion).
+    """
     if len(stage2_scales) == 0:
         raise ValueError("Stage-2 scales are empty; cannot map Stage-1 channels.")
     idx = int(np.searchsorted(stage2_scales, float(low_scale), side='left'))
@@ -321,6 +342,12 @@ def _build_overlap_chunks(data_shape, n_chunk, overlap):
 
 
 def _resolve_chunk_count_for_scale(data_shape, requested_n_chunk, overlap_pixels):
+    """
+    Disable chunking when overlap halo is too large for chunk block size.
+
+    This avoids seam artifacts at large scales where the valid interior of each
+    block becomes too small after halo trimming.
+    """
     n_chunk = int(requested_n_chunk)
     if n_chunk <= 1:
         return 1
@@ -341,6 +368,9 @@ def _available_bytes_fallback():
 
 
 def _get_available_accelerator_bytes(device):
+    """
+    Best-effort estimate of currently available accelerator memory in bytes.
+    """
     if not TORCH_AVAILABLE:
         return None
 
@@ -350,6 +380,7 @@ def _get_available_accelerator_bytes(device):
         return int(free_bytes)
 
     if device.type == "mps":
+        # Prefer explicit MPS allocator stats when available.
         if hasattr(torch.mps, "recommended_max_memory"):
             rec = int(torch.mps.recommended_max_memory())
             if hasattr(torch.mps, "driver_allocated_memory"):
@@ -365,6 +396,9 @@ def _get_available_accelerator_bytes(device):
 
 
 def _auto_n_chunk_from_budget(data_shape, max_scale, n_overlap, bytes_budget, dtype):
+    """
+    Estimate an overlap-aware chunk count for the given memory budget.
+    """
     if bytes_budget is None or bytes_budget <= 0:
         return 1
 
@@ -404,29 +438,8 @@ def _chunked_diffusion_step(
     monai_sw_batch_size,
 ):
     chunks = _build_overlap_chunks(current_data.shape, int(n_chunk), int(overlap_pixels))
-
-    def _linear_feather_weights(chunk_shape, valid_slices):
-        """Create an N-D separable linear ramp mask for overlap feathering."""
-        w = np.ones(tuple(int(v) for v in chunk_shape), dtype=np.float32)
-        ndim = len(chunk_shape)
-        for axis in range(ndim):
-            axis_len = int(chunk_shape[axis])
-            vsl = valid_slices[axis]
-            left = int(vsl.start)
-            right = int(axis_len - int(vsl.stop))
-            axis_w = np.ones(axis_len, dtype=np.float32)
-            if left > 0:
-                axis_w[:left] = np.linspace(0.0, 1.0, num=left, endpoint=False, dtype=np.float32)
-            if right > 0:
-                axis_w[-right:] = np.linspace(1.0, 0.0, num=right, endpoint=False, dtype=np.float32)
-            reshape = [1] * ndim
-            reshape[axis] = axis_len
-            w *= axis_w.reshape(reshape)
-        return w
-
     if use_gpu:
-        diff_accum = torch.zeros_like(current_data)
-        weight_accum = torch.zeros_like(current_data)
+        diff_full = torch.zeros_like(current_data)
         for ch in chunks:
             chunk_data = current_data[ch["chunk_slices"]]
             smooth = _gaussian_filter_nd_pytorch_backend(
@@ -439,39 +452,49 @@ def _chunked_diffusion_step(
                 monai_sw_batch_size=monai_sw_batch_size,
             )
             diff_chunk = chunk_data - smooth
-            weight_np = _linear_feather_weights(chunk_data.shape, ch["valid_slices"])
-            weight = torch.from_numpy(weight_np).to(device=chunk_data.device, dtype=diff_chunk.dtype)
-            diff_accum[ch["chunk_slices"]] += diff_chunk * weight
-            weight_accum[ch["chunk_slices"]] += weight
-        eps = torch.finfo(diff_accum.dtype).eps if diff_accum.dtype.is_floating_point else 1e-6
-        return diff_accum / torch.clamp(weight_accum, min=eps)
+            diff_full[ch["output_slices"]] = diff_chunk[ch["valid_slices"]]
+        return diff_full
 
-    diff_accum = np.zeros_like(current_data)
-    weight_accum = np.zeros_like(current_data)
+    diff_full = np.zeros_like(current_data)
     for ch in chunks:
         chunk_data = current_data[ch["chunk_slices"]]
         smooth = ndimage.gaussian_filter(chunk_data, kernel_size, mode=sm_mode)
         diff_chunk = chunk_data - smooth
-        weight = _linear_feather_weights(chunk_data.shape, ch["valid_slices"]).astype(diff_chunk.dtype, copy=False)
-        diff_accum[ch["chunk_slices"]] += diff_chunk * weight
-        weight_accum[ch["chunk_slices"]] += weight
-    eps = np.finfo(diff_accum.dtype).eps if np.issubdtype(diff_accum.dtype, np.floating) else 1e-6
-    return diff_accum / np.maximum(weight_accum, eps)
+        diff_full[ch["output_slices"]] = diff_chunk[ch["valid_slices"]]
+    return diff_full
 
 
 # =============================================================================
 # CORE ENGINE
 # =============================================================================
-def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='reflect',
+def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='reflect', 
                                          constrained=True, inverted=False, use_gpu=False, verbose=True,
-                                         gaussian_backend='cuda',  # Use CUDA mathematically exact chunks instead of MONAI
+                                         gaussian_backend='monai',
                                          monai_roi_size=96, monai_overlap=0.25,
                                          monai_sw_batch_size=1,
-                                         n_chunk=1, n_overlap=4.0):
-
+                                         n_chunk=1, n_overlap=2.0):
+    """
+    Perform iterative diffusion decomposition on N-dimensional data.
+    
+    Args:
+        data (ndarray or Tensor): N-dimensional input array/tensor.
+        scales (list or ndarray): Sorted array of scale thresholds (in pixels).
+        e_rel (float, optional): Relative error tolerance for calculating iterations. Defaults to 3e-2.
+        sm_mode (str, optional): Padding mode for the Gaussian filter. Defaults to 'reflect'.
+        constrained (bool, optional): Whether to prevent polarity reversals. Defaults to True.
+        inverted (bool, optional): Flips the constraint logic. Defaults to False.
+        use_gpu (bool, optional): Execute on GPU if True. Defaults to False.
+        verbose (bool, optional): Print scale progress. Defaults to True.
+        n_chunk (int, optional): Number of overlap-aware chunks to process per iteration.
+            `1` disables chunking. Defaults to 1.
+        n_overlap (float, optional): Overlap multiplier relative to current scale
+            (`overlap_pixels = ceil(n_overlap * scale_end)`). Defaults to 2.0.
+        
+    Returns:
+        tuple: (list of channel arrays/tensors, residual array/tensor)
+    """
     if use_gpu and not TORCH_AVAILABLE:
-        if verbose:
-            print("Warning: PyTorch not found. Falling back to CPU execution.")
+        if verbose: print("Warning: PyTorch not found. Falling back to CPU execution.")
         use_gpu = False
     if int(n_chunk) < 1:
         raise ValueError("n_chunk must be >= 1.")
@@ -483,12 +506,13 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
         raise ValueError("Input data array is empty")
     elif is_tensor and data.numel() == 0:
         raise ValueError("Input data tensor is empty")
-
+        
+    # Safely handle 'scales'
     if isinstance(scales, torch.Tensor):
         scales_array = scales.cpu().numpy()
     else:
         scales_array = np.array(scales)
-
+        
     if not np.all(np.diff(scales_array) > -1e-9):
         raise ValueError("The 'scales' array must be sorted in increasing order.")
 
@@ -498,7 +522,7 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
         print(f"Running Engine in {mode_str} mode on {device_str}.")
 
     # ---------------------------------------------------------
-    # GPU (PyTorch) Execution
+    # GPU (PyTorch) Execution 
     # ---------------------------------------------------------
     if use_gpu:
         current_data = data.clone()
@@ -508,24 +532,16 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
         for i, scale_end in enumerate(scales_array):
             channel_image = torch.zeros_like(current_data)
             t_end = scale_end**2 / 2.0
-
+            
             delta_t_max = t_beginning * e_rel if t_beginning > 0 else t_end * e_rel
-            if delta_t_max <= 0:
-                delta_t_max = (t_end - t_beginning) * 0.1
-
+            if delta_t_max <= 0: delta_t_max = (t_end - t_beginning) * 0.1
+                
             niter = max(1, int((t_end - t_beginning) / delta_t_max + 0.5))
             delta_t = (t_end - t_beginning) / niter
             kernel_size = (2 * delta_t) ** 0.5
-
-            if verbose:
-                print(f"Channel {i}: Scale < {scale_end:.2f} pixels, Iterations: {niter}")
-
-            # --- FIX FOR GRID ARTIFACTS: Ensure exact chunking completely covers the gaussian filter radius ---
-            raw_overlap = int(math.ceil(float(n_overlap) * float(scale_end)))
-            kernel_radius = int(4.0 * kernel_size + 1.0)
-            overlap_pixels = max(raw_overlap, kernel_radius)  # Strictly guarantee mathematical safety
-            # ------------------------------------------------------------------------------------------------
-
+            
+            if verbose: print(f"Channel {i}: Scale < {scale_end:.2f} pixels, Iterations: {niter}")
+            overlap_pixels = int(math.ceil(float(n_overlap) * float(scale_end)))
             effective_n_chunk = _resolve_chunk_count_for_scale(
                 current_data.shape, int(n_chunk), overlap_pixels
             )
@@ -568,20 +584,23 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
                             f"(MONAI ROI/window limit reached)."
                         )
                     return result, current_data.cpu()
-
+                
+                # Highly optimized mask generation using mathematical product (avoids 5 boolean allocs)
                 if constrained:
                     if not inverted:
                         mask = (diff_raw * current_data) > 0
                     else:
                         mask = (diff_raw * current_data) < 0
-                    diff_raw.mul_(mask)
-
+                    diff_raw.mul_(mask)  # In-place masking
+                    
+                # In-place operations to prevent new tensor allocations
                 channel_image.add_(diff_raw)
                 current_data.sub_(diff_raw)
-
+                
+            # MEMORY SAFEGUARD: Move finished channel to CPU memory immediately
             result.append(channel_image.cpu())
             t_beginning = t_end
-
+            
         return result, current_data.cpu()
 
     # ---------------------------------------------------------
@@ -595,29 +614,25 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
         for i, scale_end in enumerate(scales_array):
             channel_image = np.zeros_like(current_data)
             t_end = scale_end**2 / 2.0
-
-            if t_beginning > 0:
-                delta_t_max = t_beginning * e_rel
-            else:
-                delta_t_max = t_end * e_rel
-            if delta_t_max <= 0:
-                delta_t_max = (t_end - t_beginning) * 0.1
-
+            
+            if t_beginning > 0: delta_t_max = t_beginning * e_rel
+            else: delta_t_max = t_end * e_rel
+            if delta_t_max <= 0: delta_t_max = (t_end - t_beginning) * 0.1
+            
             niter = max(1, int((t_end - t_beginning) / delta_t_max + 0.5))
             delta_t = (t_end - t_beginning) / niter
             kernel_size = np.sqrt(2 * delta_t)
-
-            if verbose:
-                print(f"Channel {i}: Scale < {scale_end:.2f} pixels, Iterations: {niter}")
-
-            # CPU safety fix for grid
-            raw_overlap = int(math.ceil(float(n_overlap) * float(scale_end)))
-            kernel_radius = int(4.0 * kernel_size + 1.0)
-            overlap_pixels = max(raw_overlap, kernel_radius)
-
+            
+            if verbose: print(f"Channel {i}: Scale < {scale_end:.2f} pixels, Iterations: {niter}")
+            overlap_pixels = int(math.ceil(float(n_overlap) * float(scale_end)))
             effective_n_chunk = _resolve_chunk_count_for_scale(
                 current_data.shape, int(n_chunk), overlap_pixels
             )
+            if verbose and int(n_chunk) > 1 and effective_n_chunk == 1:
+                print(
+                    f"Channel {i}: disabling chunking at large scale "
+                    f"(requested n_chunk={int(n_chunk)}, overlap={overlap_pixels})."
+                )
 
             for _ in range(niter):
                 if effective_n_chunk > 1:
@@ -636,20 +651,20 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
                 else:
                     smooth_image = ndimage.gaussian_filter(current_data, kernel_size, mode=sm_mode)
                     diff_raw = current_data - smooth_image
-
+                
                 if constrained:
                     if not inverted:
                         mask = (diff_raw * current_data) > 0
                     else:
                         mask = (diff_raw * current_data) < 0
                     diff_raw *= mask
-
+                    
                 channel_image += diff_raw
                 current_data -= diff_raw
-
+                
             result.append(channel_image)
             t_beginning = t_end
-
+            
         return result, current_data
 
 
@@ -666,13 +681,49 @@ def constrained_diffusion_decomposition(
     upsample_scale=None,
     constrained=True, inverted=False, return_scales=False,
     use_gpu=False, device=None, verbose=True,
-    gaussian_backend='cuda',  # Default to CUDA for native seamless VRAM chunking
+    gaussian_backend='monai',
     monai_roi_size=96, monai_overlap=0.25, monai_sw_batch_size=1,
-    n_chunk=None, n_upsample_chunk=None, n_overlap=4.0
+    n_chunk=None, n_upsample_chunk=None, n_overlap=2.0
 ):
+    """
+    Automated wrapper for multiscale diffusion decomposition. Manages scales, 
+    switching grids (upsampling), and handles CPU/GPU data transfer automatically.
+    
+    Args:
+        data (ndarray or Tensor): N-dimensional image/volume.
+        num_channels (int, optional): Number of scale frequency bands.
+        max_scale (float, optional): Maximum pixel scale threshold.
+        min_scale (float, optional): Minimum pixel scale threshold. Defaults to 1.
+        max_n_channels (int, optional): Optional upper bound on the number of
+            generated scale channels.
+        mode (str, optional): Scale progression, 'log' or 'lin'. Defaults to 'log'.
+        log_scale_base (float, optional): Base for logarithmic progression. Defaults to 2.0.
+        linear_scale_step (float, optional): Step size for linear mode.
+        e_rel (float, optional): Relative accuracy parameter for diffusion. Defaults to 3e-2.
+        sm_mode (str, optional): Boundary condition for filtering. Defaults to 'reflect'.
+        up_sample (bool, optional): Upsamples high frequencies to compute them accurately. Defaults to True.
+        switch_scale (float, optional): Scale above which upsampling turns off. Defaults to 5.0.
+        zoom_factor (float, optional): Factor to zoom when up_sample is True. Defaults to 4.0.
+        constrained (bool, optional): Enables constrained non-reversing decomposition. Defaults to True.
+        inverted (bool, optional): Invert the constraints. Defaults to False.
+        return_scales (bool, optional): Return the actual scale limits used. Defaults to False.
+        use_gpu (bool, optional): Force PyTorch GPU acceleration. Defaults to False.
+        device (str, optional): Specify exact torch device (e.g. 'cuda:1'). Defaults to None.
+        verbose (bool, optional): Verbosity flag. Defaults to True.
+        n_chunk (int, optional): Chunk count for the standard/fixed-grid stage.
+            `None` enables auto-chunking on CUDA/MPS (memory-budget based), and
+            resolves to 1 on CPU.
+        n_upsample_chunk (int, optional): Chunk count for the upsampled stage.
+            `None` enables auto-chunking on CUDA/MPS (memory-budget based), and
+            resolves to `2**n_dim` on CPU.
+        n_overlap (float, optional): Overlap multiplier per current scale
+            (`overlap_pixels = ceil(n_overlap * scale_end)`). Defaults to 2.0.
+        
+    Returns:
+        tuple: (results list, residual data) or (results list, residual data, scale_edges array)
+    """
     if use_gpu and not TORCH_AVAILABLE:
-        if verbose:
-            print("Warning: PyTorch not found. Falling back to CPU execution.")
+        if verbose: print("Warning: PyTorch not found. Falling back to CPU execution.")
         use_gpu = False
     if upsample_scale is not None:
         zoom_factor = float(upsample_scale)
@@ -686,16 +737,17 @@ def constrained_diffusion_decomposition(
         raise ValueError("n_upsample_chunk must be >= 1.")
     if float(n_overlap) <= 0:
         raise ValueError("n_overlap must be > 0.")
+    if use_gpu and gaussian_backend == 'monai' and not MONAI_AVAILABLE:
+        if verbose:
+            print("Warning: MONAI not found. Falling back to gaussian_backend='cuda'.")
+        gaussian_backend = 'cuda'
 
     is_numpy = isinstance(data, np.ndarray)
-
+    
+    # Establish Data Memory Location
     if use_gpu:
         target_device = _get_optimal_device(device)
         if is_numpy:
-            # Normalise byte order: FITS files are often big-endian;
-            # torch.from_numpy rejects non-native byte order.
-            if data.dtype.byteorder not in ('=', '|'):
-                data = data.astype(data.dtype.newbyteorder('='), copy=False)
             current_data = torch.from_numpy(data).float().to(target_device)
         elif isinstance(data, torch.Tensor):
             current_data = data.to(target_device)
@@ -707,9 +759,17 @@ def constrained_diffusion_decomposition(
         else:
             current_data = data
 
+    # --- Scale Calculation Logic ---
+    if mode == 'log' and log_scale_base <= 1:
+        raise ValueError("log_scale_base must be greater than 1 for logarithmic mode.")
+    if mode == 'lin' and (linear_scale_step is None or linear_scale_step <= 0):
+        raise ValueError("`linear_scale_step` must be a positive number for 'lin' mode.")
+    if max_n_channels is not None and int(max_n_channels) < 1:
+        raise ValueError("max_n_channels must be >= 1 when provided.")
+
     effective_min_scale = float(min_scale)
     effective_max_scale = float(max_scale) if max_scale is not None else float(max(current_data.shape) / 2)
-
+    
     if effective_max_scale <= effective_min_scale:
         raise ValueError(f"max_scale ({effective_max_scale:.2f}) > min_scale ({effective_min_scale:.2f}) required.")
 
@@ -717,7 +777,7 @@ def constrained_diffusion_decomposition(
         if num_channels is None:
             log_diff = np.log(effective_max_scale * (1 + 1e-9)) - np.log(effective_min_scale)
             num_channels = int(log_diff / np.log(log_scale_base)) + 1
-
+            
         start_power = np.log(effective_min_scale) / np.log(log_scale_base)
         stop_power = start_power + (num_channels - 1)
         scale_edges = np.logspace(start_power, stop_power, num=num_channels, base=log_scale_base)
@@ -733,6 +793,8 @@ def constrained_diffusion_decomposition(
     if len(scale_edges) == 0:
         raise ValueError("Scale generation failed.")
 
+    # Stage-1 can use full scale list (including sub-2 px low-equivalent bands),
+    # while Stage-2 is explicitly fixed-grid from >=2 px.
     stage1_scale_edges = scale_edges.copy()
     stage2_scale_edges = scale_edges.copy()
     if up_sample:
@@ -740,7 +802,7 @@ def constrained_diffusion_decomposition(
         if len(stage2_scale_edges) == 0:
             raise ValueError("Stage-2 scales are empty after enforcing minimum 2-pixel start.")
 
-    # --- THIS BLOCK SAVES YOUR VRAM WITHOUT NEEDING MONAI ---
+    # --- Perform decomposition ---
     n_dim = int(current_data.ndim)
     bytes_budget = None
     if use_gpu and target_device.type in {"cuda", "mps"}:
@@ -764,14 +826,13 @@ def constrained_diffusion_decomposition(
     resolved_n_upsample_chunk = int(n_upsample_chunk) if n_upsample_chunk is not None else (2 ** n_dim)
     if verbose:
         if n_chunk is None:
-            print(f"Resolved n_chunk={resolved_n_chunk} (auto natively slicing arrays for RAM safety).")
+            print(f"Resolved n_chunk={resolved_n_chunk} (auto).")
         if n_upsample_chunk is None:
             mode = "auto on GPU" if use_gpu else "default CPU"
             print(f"Resolved n_upsample_chunk={resolved_n_upsample_chunk} ({mode}).")
-    # -------------------------------------------------------
 
     core_kwargs = {
-        'e_rel': e_rel, 'sm_mode': sm_mode,
+        'e_rel': e_rel, 'sm_mode': sm_mode, 
         'constrained': constrained, 'inverted': inverted if constrained else False,
         'use_gpu': use_gpu, 'verbose': verbose,
         'gaussian_backend': gaussian_backend,
@@ -783,19 +844,18 @@ def constrained_diffusion_decomposition(
 
     results = []
     residual = current_data
-
+    
     if up_sample:
         scales_small = stage1_scale_edges[stage1_scale_edges <= switch_scale]
         n_small_scales = int(len(scales_small))
         results_small = []
         low_equiv_scales = None
-
+        
         if n_small_scales > 0:
-            if verbose:
-                print(f"\n--- STAGE 1: High-res decomposition (scales <= {switch_scale}) ---")
+            if verbose: print(f"\n--- STAGE 1: High-res decomposition (scales <= {switch_scale}) ---")
             upsampled_scales = np.unique(np.maximum(scales_small * zoom_factor, zoom_factor))
             low_equiv_scales = upsampled_scales / float(zoom_factor)
-
+            
             if use_gpu:
                 upsampled_data = _zoom_tensor(current_data, zoom_factor)
                 if n_upsample_chunk is None and bytes_budget is not None:
@@ -812,6 +872,7 @@ def constrained_diffusion_decomposition(
                     upsampled_data, upsampled_scales, n_chunk=int(resolved_n_upsample_chunk), **core_kwargs
                 )
 
+                # Downsample Stage-1 outputs via block average pooling before Stage-2 merge.
                 results_small = [_downsample_mean_tensor(res.to(target_device), zoom_factor).cpu() for res in results_small_up]
                 current_data = _downsample_mean_tensor(residual_up.to(target_device), zoom_factor)
             else:
@@ -842,17 +903,421 @@ def constrained_diffusion_decomposition(
         else:
             residual = current_data
     else:
-        if verbose:
-            print('\n--- Performing standard fixed-grid decomposition ---')
+        if verbose: print(f'\n--- Performing standard fixed-grid decomposition ---')
         results, residual = constrained_multiscale_decomposition(
             current_data, scale_edges, n_chunk=int(resolved_n_chunk), **core_kwargs
         )
 
+    # --- Convert back to original type (NumPy) if requested ---
     if use_gpu and is_numpy:
         results = [r.numpy() for r in results]
         if isinstance(residual, torch.Tensor):
             residual = residual.cpu().numpy()
 
+    # Returns resolved
     if return_scales:
         return results, residual, (stage2_scale_edges if up_sample else scale_edges)
     return results, residual
+#!/usr/bin/env python3
+"""
+CDD 2D-to-3D FITS wrapper with optional morphology-aware filtering.
+
+Input:
+    2D FITS (X, Y)
+Output:
+    3D FITS (L, X, Y), where L is scale/channel index
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+import numpy as np
+from astropy.io import fits
+from scipy import ndimage
+
+import constrained_diffusion as cdd
+
+
+def _hessian_eigenvalues_2d(image: np.ndarray, sigma: float) -> tuple[np.ndarray, np.ndarray]:
+    """Compute 2D Hessian eigenvalues after Gaussian smoothing."""
+    smoothed = ndimage.gaussian_filter(image, sigma=max(float(sigma), 1e-3), mode="reflect")
+    dxx = ndimage.gaussian_filter(smoothed, sigma=0.0, order=(2, 0), mode="reflect")
+    dxy = ndimage.gaussian_filter(smoothed, sigma=0.0, order=(1, 1), mode="reflect")
+    dyy = ndimage.gaussian_filter(smoothed, sigma=0.0, order=(0, 2), mode="reflect")
+
+    trace = dxx + dyy
+    det_term = (dxx - dyy) ** 2 + 4.0 * (dxy ** 2)
+    root = np.sqrt(np.maximum(det_term, 0.0))
+    l1 = 0.5 * (trace + root)
+    l2 = 0.5 * (trace - root)
+    return l1, l2
+
+
+def _morphology_keep_mask(channel: np.ndarray, sigma: float) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Keep clumps/filaments/sheets and reject concave regions.
+    Label codes:
+      0 background or ambiguous
+      1 clump
+      2 filament
+      3 sheet
+      4 concave
+    """
+    labels = np.zeros_like(channel, dtype=np.uint8)
+
+    if channel.ndim != 2:
+        # ND fallback: use Laplacian sign to reject concave regions.
+        lap = ndimage.laplace(ndimage.gaussian_filter(channel, sigma=max(float(sigma), 1e-3), mode="reflect"))
+        strength = np.abs(lap)
+        thr = 0.25 * float(np.std(strength))
+        strong = strength > thr
+        concave = (lap > 0) & strong
+        keep = (lap <= 0) & strong
+        labels[concave] = 4
+        labels[keep] = 2
+        return keep, labels
+
+    l1, l2 = _hessian_eigenvalues_2d(channel, sigma=sigma)
+    strength = np.maximum(np.abs(l1), np.abs(l2))
+    thr = 0.25 * float(np.std(strength))
+    strong = strength > thr
+    neg1 = l1 < 0
+    neg2 = l2 < 0
+
+    clump = (neg1 & neg2) & strong
+    ridge_like = (neg1 ^ neg2) & strong
+    filament = ridge_like
+    # In 2D there is no volumetric "sheet" class; keep key for API compatibility.
+    sheet = np.zeros_like(ridge_like, dtype=bool)
+    concave = ((~neg1) & (~neg2)) & strong
+
+    labels[clump] = 1
+    labels[filament] = 2
+    labels[sheet] = 3
+    labels[concave] = 4
+
+    keep = clump | filament | sheet
+    return keep, labels
+
+
+def _suffix_path(path: Path, suffix: str) -> Path:
+    """Return sibling FITS path with suffix appended before extension."""
+    return path.with_name(f"{path.stem}_{suffix}{path.suffix}")
+
+
+def morph_informed_diffusion_decomposition(
+    data,
+    morphology_aware=True,
+    allow_diffuse=True,
+    return_details=False,
+    return_scales=False,
+    **kwargs,
+):
+    """
+    Programmatic API for morphology-informed decomposition.
+
+    Backward-compatible behavior:
+      - default return: (results, residual) or (results, residual, scales)
+      - with return_details=True: return a dict with cube outputs
+
+    Details dictionary keys:
+      - result_cube: filtered decomposition (or raw decomposition if morphology_aware=False)
+      - labels_cube: morphology labels, or None
+      - clump_cube: clump-only cube, or None
+      - filament_cube: filament-only cube, or None
+      - diffuse_cube: diffuse-only cube, or None
+      - residual: CDD residual
+      - scales: channel scales
+    """
+    results, residual, scales = cdd.constrained_diffusion_decomposition(
+        data,
+        **kwargs,
+        return_scales=True,
+    )
+
+    labels_cube = None
+    clump_cube = None
+    filament_cube = None
+    sheet_cube = None
+    diffuse_cube = None
+    channel_results = None
+
+    if morphology_aware:
+        filtered = []
+        labels = []
+        clump_list = []
+        filament_list = []
+        sheet_list = []
+        diffuse_list = []
+        channel_results = []
+        for idx, channel in enumerate(results):
+            sigma = float(scales[idx]) if idx < len(scales) else 1.0
+            keep_mask, label_map = _morphology_keep_mask(np.asarray(channel), sigma=max(sigma / 2.0, 1.0))
+            clump_mask = label_map == 1
+            filament_mask = label_map == 2
+            sheet_mask = label_map == 3
+            concave_mask = label_map == 4
+            diffuse_mask = ~(clump_mask | filament_mask | sheet_mask | concave_mask)
+            filtered_mask = (clump_mask | filament_mask | sheet_mask | diffuse_mask) if allow_diffuse else keep_mask
+
+            filtered.append(np.where(filtered_mask, channel, 0.0))
+            labels.append(label_map)
+            clump_list.append(np.where(clump_mask, channel, 0.0))
+            filament_list.append(np.where(filament_mask, channel, 0.0))
+            sheet_list.append(np.where(sheet_mask, channel, 0.0))
+            diffuse_list.append(np.where(diffuse_mask, channel, 0.0))
+            channel_results.append(
+                {
+                    "clump": clump_list[-1],
+                    "filament": filament_list[-1],
+                    "sheet": sheet_list[-1],
+                    "diffuse": diffuse_list[-1],
+                    "filtered": filtered[-1],
+                    "labels": label_map,
+                }
+            )
+        results = filtered
+        labels_cube = np.stack(labels, axis=0).astype(np.uint8)
+        clump_cube = np.stack(clump_list, axis=0).astype(np.float32)
+        filament_cube = np.stack(filament_list, axis=0).astype(np.float32)
+        sheet_cube = np.stack(sheet_list, axis=0).astype(np.float32)
+        diffuse_cube = np.stack(diffuse_list, axis=0).astype(np.float32)
+
+    result_cube = np.stack(results, axis=0).astype(np.float32)
+
+    out = {
+        "results": results,
+        "result_cube": result_cube,
+        "labels_cube": labels_cube,
+        "clump_cube": clump_cube,
+        "filament_cube": filament_cube,
+        "sheet_cube": sheet_cube,
+        "diffuse_cube": diffuse_cube,
+        "residual": residual,
+        "scales": scales,
+    }
+    if return_details:
+        if return_scales:
+            return out, scales
+        return out
+    if morphology_aware:
+        if return_scales:
+            return channel_results, residual, scales
+        return channel_results, residual
+    if return_scales:
+        return results, residual, scales
+    return results, residual
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Decompose 2D FITS into 3D (L, X, Y) scales with optional morphology-aware filtering."
+    )
+    parser.add_argument("input", type=Path, help="Input 2D FITS file")
+    parser.add_argument("output", type=Path, nargs="?", default=None, help="Output 3D FITS path")
+
+    parser.add_argument("--max-level", type=int, default=None, help="Max number of channels (default: auto)")
+    parser.add_argument("--max-scale", type=float, default=None, help="Largest scale in pixels (default: auto)")
+    parser.add_argument("--unconstrained", action="store_true", help="Disable sign-constrained diffusion")
+
+    parser.add_argument("--cpu", action="store_true", help="Force CPU mode")
+    parser.add_argument("--gpu", action="store_true", help="Force GPU mode (default behavior)")
+
+    parser.add_argument("--upsample", dest="upsample", action="store_true", help="Enable high-res upsampling (default)")
+    parser.add_argument("--no-upsample", dest="upsample", action="store_false", help="Disable high-res upsampling")
+    parser.set_defaults(upsample=True)
+
+    parser.add_argument(
+        "--morphological",
+        "--morphology-aware",
+        dest="morphology_aware",
+        action="store_true",
+        help="Enable morphology-aware post-filtering and save clump/filament/diffuse cubes",
+    )
+
+    args = parser.parse_args()
+
+    if args.output is None:
+        args.output = args.input.with_name(args.input.stem + "_scales.fits")
+
+    try:
+        with fits.open(args.input) as hdul:
+            data = np.asarray(hdul[0].data, dtype=np.float32)
+            header = hdul[0].header.copy()
+    except Exception as exc:
+        print(f"Read error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if data.ndim != 2:
+        print(f"Warning: expected 2D image, got {data.ndim}D. Proceeding with generic ND decomposition.", file=sys.stderr)
+
+    constrained = not args.unconstrained
+    use_gpu = True
+    if args.cpu:
+        use_gpu = False
+    if args.gpu:
+        use_gpu = True
+
+    print(
+        f"Decomposing {data.shape} | GPU: {use_gpu} | Up-sample: {args.upsample} | "
+        f"Max-scale: {args.max_scale if args.max_scale is not None else 'auto'} | "
+        f"Morphology-aware: {args.morphology_aware}"
+    )
+
+    try:
+        out = morph_informed_diffusion_decomposition(
+            data,
+            morphology_aware=args.morphology_aware,
+            return_details=True,
+            num_channels=args.max_level,
+            max_scale=args.max_scale,
+            constrained=constrained,
+            use_gpu=use_gpu,
+            up_sample=args.upsample,
+        )
+    except Exception as exc:
+        print(f"Decomposition failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    result_cube = out["result_cube"]
+    labels_cube = out["labels_cube"]
+    clump_cube = out["clump_cube"]
+    filament_cube = out["filament_cube"]
+    diffuse_cube = out["diffuse_cube"]
+    header["NCHAN"] = int(result_cube.shape[0])
+    header["CONSTR"] = (constrained, "Constrained mode enabled")
+    header["GPU"] = (use_gpu, "GPU acceleration requested")
+    header["UPSAMP"] = (bool(args.upsample), "Hybrid upsampling")
+    header["MAXSCL"] = (float(args.max_scale) if args.max_scale is not None else -1.0, "Max scale; -1=auto")
+    header["MORPH"] = (bool(args.morphology_aware), "Morphology-aware filtering")
+
+    try:
+        if labels_cube is None:
+            fits.writeto(args.output, result_cube, header, overwrite=True)
+        else:
+            hdu0 = fits.PrimaryHDU(data=result_cube, header=header)
+            hdu1 = fits.ImageHDU(data=labels_cube, name="MORPH_LABELS")
+            fits.HDUList([hdu0, hdu1]).writeto(args.output, overwrite=True)
+            fits.writeto(_suffix_path(args.output, "clump"), clump_cube, header, overwrite=True)
+            fits.writeto(_suffix_path(args.output, "filament"), filament_cube, header, overwrite=True)
+            fits.writeto(_suffix_path(args.output, "diffuse"), diffuse_cube, header, overwrite=True)
+    except Exception as exc:
+        print(f"Save error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Success! Saved 3D array {result_cube.shape} (L, X, Y) to {args.output}")
+    if labels_cube is not None:
+        print("Added extension MORPH_LABELS with code map: 1=clump, 2=filament, 3=sheet, 4=concave")
+        print(f"Saved clump cube: {_suffix_path(args.output, 'clump')}")
+        print(f"Saved filament cube: {_suffix_path(args.output, 'filament')}")
+        print(f"Saved diffuse cube: {_suffix_path(args.output, 'diffuse')}")
+
+
+if __name__ == "__main__":
+    main()
+#!/usr/bin/env python3
+"""Utility helpers for channel-scale estimation."""
+
+import argparse
+import sys
+from pathlib import Path
+
+import numpy as np
+from scipy.ndimage import gaussian_gradient_magnitude, gaussian_laplace
+
+try:
+    from astropy.io import fits
+except ImportError:  # pragma: no cover
+    fits = None
+
+
+def load_data(file_path):
+    """Load .npy or FITS data as float ndarray, squeezing singleton dimensions."""
+    path = Path(file_path)
+    ext = path.suffix.lower()
+
+    if ext == ".npy":
+        data = np.load(path)
+    elif ext in [".fits", ".fit", ".fts"]:
+        if fits is None:
+            raise ImportError("astropy is required to read FITS files")
+        with fits.open(path) as hdul:
+            data = hdul[0].data if hdul[0].data is not None else hdul[1].data
+    else:
+        raise ValueError(f"Unsupported file format: {ext}")
+
+    return np.squeeze(np.asarray(data, dtype=float))
+
+
+def get_weighted_characteristic_scale(channel_data):
+    """
+    Estimate a characteristic scale from integrated gradient/laplacian ratio.
+
+    Works for N-D channel arrays and is robust to NaN/Inf and zero-point shifts.
+    """
+    img = np.nan_to_num(np.asarray(channel_data, dtype=float), nan=0.0, posinf=0.0, neginf=0.0)
+    laplacian = np.abs(gaussian_laplace(img, sigma=1.0))
+    gradient = gaussian_gradient_magnitude(img, sigma=1.0)
+
+    sum_laplacian = float(np.sum(laplacian))
+    sum_gradient = float(np.sum(gradient))
+
+    if sum_laplacian == 0.0:
+        return 0.0
+
+    raw_scale = sum_gradient / sum_laplacian
+    return raw_scale * 1.55
+
+
+def estimate_channel_scales(data, channel_axis=0):
+    """
+    Estimate one characteristic scale per channel.
+
+    For 2D input, treats data as a single channel.
+    For N-D input (N >= 3), treats `channel_axis` as the channel dimension.
+    """
+    arr = np.asarray(data, dtype=float)
+    if arr.ndim < 2:
+        raise ValueError("Input data must be at least 2D")
+
+    if arr.ndim == 2:
+        channels = arr[np.newaxis, ...]
+    else:
+        channels = np.moveaxis(arr, channel_axis, 0)
+
+    return [get_weighted_characteristic_scale(channels[i, ...]) for i in range(channels.shape[0])]
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Estimate weighted characteristic scale for each channel from .npy or FITS input."
+    )
+    parser.add_argument("input", help="Input file path (.npy/.fits/.fit/.fts)")
+    parser.add_argument(
+        "--channel-axis",
+        type=int,
+        default=0,
+        help="Channel axis for N-D arrays (ignored for 2D inputs). Default: 0",
+    )
+    args = parser.parse_args(argv)
+
+    try:
+        data = load_data(args.input)
+        scales = estimate_channel_scales(data, channel_axis=args.channel_axis)
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Analyzing {len(scales)} channels...")
+    print("Method: Laplacian/Gradient Weighted Ratio")
+    print("\n" + "=" * 45)
+    print(f"{'Channel':<10} | {'Weighted Scale (σ)':<25}")
+    print("-" * 45)
+    for idx, scale in enumerate(scales):
+        print(f"Ch {idx:<7} | {scale:<25.6f}")
+    print("=" * 45)
+
+
+if __name__ == "__main__":
+    main()
