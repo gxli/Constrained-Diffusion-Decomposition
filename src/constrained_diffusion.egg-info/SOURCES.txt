@@ -14,8 +14,11 @@ src/constrained_diffusion.egg-info/requires.txt
 src/constrained_diffusion.egg-info/top_level.txt
 tests/test_benchmark.py
 tests/test_chunking_integrity.py
+tests/test_cpu_without_torch.py
 tests/test_decomposition.py
 tests/test_lin_log.py
 tests/test_morph_informed_cli.py
+tests/test_readme_cpu.py
+tests/test_readme_gpu.py
 tests/test_tiling_performance_3d.py
 tests/test_utils_estimate_channel_scales.py

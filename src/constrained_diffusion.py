@@ -6,17 +6,48 @@ except ImportError:
     from chunking import plan_vram_chunks, calculate_overlap_pixels
 import math
 import os
+from importlib.util import find_spec
 from itertools import product
 
+__version__ = "1.2.5"
+
 # =============================================================================
-# OPTIONAL GPU SUPPORT (Graceful Fallback)
+# OPTIONAL GPU SUPPORT (Lazy import, graceful fallback)
 # =============================================================================
-try:
-    import torch
-    import torch.nn.functional as F
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
+# Merely importing this package must not load PyTorch: CPU-only users should not
+# incur its startup cost or require it to be installed.  `find_spec` lets the
+# public availability flag remain useful without importing the package.
+torch = None
+F = None
+TORCH_AVAILABLE = find_spec("torch") is not None
+
+
+def _ensure_torch():
+    """Load PyTorch only when a PyTorch-specific code path is requested."""
+    global F, TORCH_AVAILABLE, torch
+
+    if torch is not None:
+        return True
+    if not TORCH_AVAILABLE:
+        return False
+
+    try:
+        import torch as _torch
+        import torch.nn.functional as _functional
+    except ImportError:
+        TORCH_AVAILABLE = False
+        return False
+
+    torch = _torch
+    F = _functional
+    return True
+
+
+def _is_torch_tensor(value):
+    """Identify a tensor without importing PyTorch for ordinary NumPy inputs."""
+    if type(value).__module__.split(".", 1)[0] != "torch":
+        return False
+    return _ensure_torch() and isinstance(value, torch.Tensor)
 
 MONAI_AVAILABLE = False
 
@@ -44,6 +75,8 @@ def _get_optimal_device(device_arg=None):
     """
     Determine the best available compute device (CUDA, MPS, or CPU).
     """
+    if not _ensure_torch():
+        raise RuntimeError("PyTorch is required when use_gpu=True.")
     if device_arg is not None:
         return torch.device(device_arg)
     if torch.cuda.is_available():
@@ -370,7 +403,7 @@ def _auto_n_chunk_from_budget(data_shape, max_scale, n_overlap, bytes_budget, dt
 
     vram_limit_gb = float(bytes_budget) / float(1024 ** 3)
     np_dtype = np.float32
-    if TORCH_AVAILABLE and isinstance(dtype, torch.dtype):
+    if torch is not None and isinstance(dtype, torch.dtype):
         if dtype == torch.float16:
             np_dtype = np.float16
         elif dtype == torch.float64:
@@ -469,7 +502,7 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
                                          monai_sw_batch_size=1,
                                          n_chunk=1, n_overlap=4.0):
 
-    if use_gpu and not TORCH_AVAILABLE:
+    if use_gpu and not _ensure_torch():
         if verbose:
             print("Warning: PyTorch not found. Falling back to CPU execution.")
         use_gpu = False
@@ -478,13 +511,13 @@ def constrained_multiscale_decomposition(data, scales, e_rel=3e-2, sm_mode='refl
     if float(n_overlap) <= 0:
         raise ValueError("n_overlap must be > 0.")
 
-    is_tensor = use_gpu and isinstance(data, torch.Tensor)
+    is_tensor = use_gpu and _is_torch_tensor(data)
     if not is_tensor and hasattr(data, 'size') and data.size == 0:
         raise ValueError("Input data array is empty")
     elif is_tensor and data.numel() == 0:
         raise ValueError("Input data tensor is empty")
 
-    if isinstance(scales, torch.Tensor):
+    if _is_torch_tensor(scales):
         scales_array = scales.cpu().numpy()
     else:
         scales_array = np.array(scales)
@@ -670,7 +703,7 @@ def constrained_diffusion_decomposition(
     monai_roi_size=96, monai_overlap=0.25, monai_sw_batch_size=1,
     n_chunk=None, n_upsample_chunk=None, n_overlap=4.0
 ):
-    if use_gpu and not TORCH_AVAILABLE:
+    if use_gpu and not _ensure_torch():
         if verbose:
             print("Warning: PyTorch not found. Falling back to CPU execution.")
         use_gpu = False
@@ -697,12 +730,12 @@ def constrained_diffusion_decomposition(
             if data.dtype.byteorder not in ('=', '|'):
                 data = data.astype(data.dtype.newbyteorder('='), copy=False)
             current_data = torch.from_numpy(data).float().to(target_device)
-        elif isinstance(data, torch.Tensor):
+        elif _is_torch_tensor(data):
             current_data = data.to(target_device)
         else:
             raise TypeError("Data must be a numpy array or a PyTorch tensor.")
     else:
-        if isinstance(data, torch.Tensor):
+        if _is_torch_tensor(data):
             current_data = data.cpu().numpy()
         else:
             current_data = data

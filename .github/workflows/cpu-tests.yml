@@ -1,0 +1,24 @@
+name: CPU smoke tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cpu-without-pytorch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install CPU test dependencies
+        run: python -m pip install ".[test]"
+      - name: Run the CPU smoke suite
+        run: python -m pytest -q -m "not gpu and not plot"
