@@ -9,7 +9,7 @@ import os
 from importlib.util import find_spec
 from itertools import product
 
-__version__ = "1.2.5"
+__version__ = "1.2.6"
 
 # =============================================================================
 # OPTIONAL GPU SUPPORT (Lazy import, graceful fallback)

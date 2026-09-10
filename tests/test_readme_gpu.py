@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from constrained_diffusion import TORCH_AVAILABLE
-from readme_plot_utils import assert_pngs_readable, generate_readme_plots
 
 
 def _accelerator_device():
@@ -23,6 +22,8 @@ def _accelerator_device():
 
 @pytest.mark.gpu
 def test_readme_figures_gpu():
+    from readme_plot_utils import assert_pngs_readable, generate_readme_plots
+
     device = _accelerator_device()
     if device is None:
         pytest.skip("No CUDA/MPS accelerator available for README GPU figure reproduction.")

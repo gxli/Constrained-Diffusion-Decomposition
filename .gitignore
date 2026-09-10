@@ -1,0 +1,15 @@
+sync.sh
+.gitignore
+/dist
+/build/
+/src/*.egg-info/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+run.sh
+src/__pycache__/
+bk
+tests/outputs/
+github_test/
+.DS_Store
+:
